@@ -24,7 +24,7 @@ int main(){
         // Print filenames and input prompt text
         printFilenames(filePaths, showNums);
 
-        std::cout << "\nKeywords: ?, chdir, dots, between, q\n"
+        std::cout << "\nKeywords: ?, chdir, !dots, between, q\n"
                  "Enter keyword or pattern to change: ";
         getline(std::cin, pattern);
 
@@ -32,14 +32,14 @@ int main(){
         if (pattern == "q" || pattern == "" || pattern == "exit")
             { std::cout << '\n'; break; }
 
-        else if (pattern == "shownums") 
+        else if (pattern == "!index") 
             showNums = !showNums;
             
         else if (pattern == "?" ) 
             keywordHelpMenu();
 
         else if (pattern == "chdir")
-            keywordChangeDir(directory, filePaths_copy);
+            keywordChangeDir(directory, filePaths, filePaths_copy);
 
         else if (pattern == "!refresh"){
             filePaths = getFilenames(directory);
@@ -49,11 +49,17 @@ int main(){
         else if (pattern.rfind("rm", 0) == 0)
             keywordRemoveFilename(pattern, filePaths, filePaths_copy);
 
-        else if (pattern == "dots")
-            keywordRemoveDots(pattern, filePaths);
+        else if (pattern == "!dots")
+            keywordRemoveDots(filePaths);
 
         else if (pattern == "between")
             keywordBetween(filePaths);
+
+        else if (pattern == "!cap")
+            keywordCapitalize(filePaths);
+        
+        else if (pattern == "!lower")
+            keywordLower(filePaths);
 
         // Get second pattern:
         else

@@ -1,3 +1,4 @@
+#include <algorithm>  // For transform
 #include <iostream>
 #include <filesystem>
 #include <map>
@@ -9,22 +10,33 @@ namespace fs = std::filesystem;
 using Filenames = std::map<int16_t, fs::path>;
 
 
-std::string strReplaceAll(const std::string& origin, const std::string& pat, 
+
+std::string lowercase(std::string s)
+{
+    transform(s.begin(), s.end(), s.begin(), ::tolower);
+    return s;
+}
+
+
+
+std::string strReplaceAll(std::string origin, const std::string& pat, 
                           const std::string& newPat, const size_t start = 0)
 {
-    std::string newString{ origin };
+    // Search is not case sensitive, but replacement pattern is
+    std::string newString_lower{ lowercase(origin) };
+    std::string pat_lower{ lowercase(pat) };
 
     if ( pat.empty() )
-        return newString;
+        return origin;
         
     size_t startPos{ start };
-    while( (startPos = newString.find(pat, startPos) ) != std::string::npos )
+    while( (startPos = newString_lower.find(pat_lower, startPos) ) != std::string::npos )
     {
-        newString.replace(startPos, pat.length(), newPat);
+        origin.replace(startPos, pat.length(), newPat);
         startPos += newPat.length();
     }
     
-    return newString;
+    return origin;
 }
 
 
@@ -114,9 +126,7 @@ std::string renameFiles(const fs::path& file, const std::string& pat,
 
     // Rename the actual files
     fs::path fullPath{ file.parent_path() /= newFilename };
-    // fs::rename(file, fullPath);
     renameErrorCheck(file, fullPath);
-    //test
 
     return newFilename;
 }
@@ -160,8 +170,8 @@ std::string deleteBetween(const fs::path& path,
 {
     std::string filename {path.filename().string()};
 
-    int leftIndex{static_cast<int>(filename.find(lpat))};
-    int rightIndex{static_cast<int>(filename.rfind(rpat))};
+    int leftIndex{static_cast<int>(lowercase(filename).find(lowercase(lpat)))};
+    int rightIndex{static_cast<int>(lowercase(filename).rfind(lowercase(rpat)))};
 
     // Switch the pattern indexes if rightmost one is entered first
     if (leftIndex > rightIndex)
@@ -187,7 +197,6 @@ std::string deleteBetween(const fs::path& path,
 void printPause()
 {
     std::cout << "\nPress ENTER to continue...";
-    std::cin;
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     std::cout << "\n\n==============================" << std::endl;
 }
@@ -255,3 +264,24 @@ std::vector<std::string> splitString(const std::string& str,
 
     return splitLines;
 }
+
+
+void capitalize(std::string& s, bool allLower=false)
+{
+    if (allLower)
+    {
+        transform(s.begin(), s.end(), s.begin(), ::tolower);
+        return;
+    }
+
+    for (size_t idx{}; idx < s.length(); ++idx)
+    {
+        if ( (idx == 0) && (std::islower(s[idx])) )
+            s[0] = std::toupper(s[0]);
+
+        else if ( (s[idx - 1] == ' ') && (std::islower(s[idx])) )
+            s[idx] = std::toupper(s[idx]);
+    }
+}
+
+

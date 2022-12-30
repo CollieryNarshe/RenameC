@@ -1,4 +1,5 @@
 #include "rnFunctions.h"
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <set>
@@ -11,12 +12,13 @@ void keywordDefaultReplace(std::string& pattern,
                            Filenames& filePaths)
 {
     Filenames matchedPaths{};
+    std::string filename{};
 
     //Check for matches
     for (const auto& pair: filePaths)
     {
-        if (!(pair.second.filename().string().find(pattern) == std::string::npos) )
-            // matchedPaths.push_back(file);
+        filename = lowercase( pair.second.filename().string() );
+        if (!(filename.find(lowercase(pattern)) == std::string::npos) )
             matchedPaths[pair.first] = pair.second;
 
     }
@@ -52,19 +54,20 @@ void keywordDefaultReplace(std::string& pattern,
 void keywordHelpMenu()
 {
     std::cout << 
-            "\nchdir:       Change directory."
-            "\ndots:        Delete periods from all filenames and replace with spaces. Ignores prefixes and extensions."
-            "\nbetween:     Remove text between (and not including) two patterns."
-            "\nshownums:    Show index numbers for filenames."
-            "\nrm #(,#):    Remove or restore the file(s) at index #s (to omit rename)."
-            "\n!refresh:    Reload filenames from directory and restore removed files."
-            "\nq, exit, '': Quit.\n";
-            printPause();
+        "\nchdir:       Change directory."
+        "\n!dots:        Delete periods from all filenames and replace with spaces. Ignores prefixes and extensions."
+        "\nbetween:     Remove text between (and not including) two patterns."
+        "\n!index:      Show index numbers for filenames."
+        "\nrm #(,#):    Remove or restore the file(s) at index #s (to omit rename)."
+        "\n!cap:        Capitalize each word of all files."
+        "\n!refresh:    Reload filenames from directory and restore removed files."
+        "\nq, exit, '': Quit.\n";
+    printPause();
 }
 
 
 
-void keywordChangeDir(fs::path& path, Filenames& filePaths_copy)
+void keywordChangeDir(fs::path& path, Filenames& filePaths, Filenames& filePaths_copy)
 {
     std::string newDir{};
     std::cout << "Enter new directory: ";
@@ -73,7 +76,8 @@ void keywordChangeDir(fs::path& path, Filenames& filePaths_copy)
     if (fs::exists(newDir))
     {
         path = newDir;
-        filePaths_copy = getFilenames(path);
+        filePaths = getFilenames(path);
+        filePaths_copy = filePaths;
         std::cout << "\nDirectory changed.\n";
         printPause();
     }
@@ -128,12 +132,12 @@ void keywordRemoveFilename(const std::string& pattern,
 
 
 
-void keywordRemoveDots(std::string& pattern, 
-                       Filenames& filePaths)
+void keywordRemoveDots(Filenames& filePaths)
 {
     std::cout << "\nAre you sure you want to remove all dots? "
                  "(Good dots once lost are lost forever.)\n"
                  "Enter q to quit or ENTER to continue.\n";
+    std::string pattern{};
     getline(std::cin, pattern);
 
     if (pattern == "q")
@@ -165,7 +169,7 @@ void keywordRemoveDots(std::string& pattern,
             printFileChange(path, new_filename);
         
         // Update file list for menu:
-        pair.second = new_filename;
+        pair.second = pair.second.replace_filename(new_filename);
 
         ++matchCount;
     }
@@ -199,8 +203,9 @@ void keywordBetween(Filenames& filePaths)
 
         filename = path.filename().string();
 
-        if ( (filename.find(lpat) != std::string::npos) && 
-             (filename.find(rpat) != std::string::npos) )
+        // Get matches
+        if ( (lowercase(filename).find(lowercase(lpat)) != std::string::npos) && 
+             (lowercase(filename).find(lowercase(rpat)) != std::string::npos) )
         {
             matchedPaths[idx] = path;
         }
@@ -220,5 +225,70 @@ void keywordBetween(Filenames& filePaths)
         filePaths[path.first] = filename;
     }
 
+    printPause();
+}
+
+
+
+void keywordCapitalize(Filenames& filePaths)
+{
+    std::cout << "\nAre you sure you want to capitalize every word of all files? "
+                 "(Good lowercase once lost is lost forever.)\n"
+                 "Enter q to quit or ENTER to continue.\n";
+    std::string query{};
+    getline(std::cin, query);
+
+    if (query == "q")
+        return;
+
+    fs::path path{};
+    std::string filename{};
+    for (auto& pair: filePaths)
+    {
+        fs::path path = pair.second;
+        std::string filename = path.filename().string();
+
+        capitalize(filename);
+
+        // Rename the actual files
+        fs::path fullPath{path.parent_path() /= filename};
+        if ( renameErrorCheck (path, fullPath) )
+            printFileChange(path, filename);
+
+        // Edit filename for menu
+        pair.second.replace_filename(filename);
+    }
+    printPause();
+}
+
+
+void keywordLower(Filenames& filePaths)
+{
+    std::cout << "\nAre you sure you want to remove capitalization of every word of all files? "
+                 "(Good uppercase once lost is lost forever.)\n"
+                 "Enter q to quit or ENTER to continue.\n";
+    std::string query{};
+    getline(std::cin, query);
+
+    if (query == "q")
+        return;
+
+    fs::path path{};
+    std::string filename{};
+    for (auto& pair: filePaths)
+    {
+        fs::path path = pair.second;
+        std::string filename = path.filename().string();
+
+        capitalize(filename, true);
+
+        // Rename the actual files
+        fs::path fullPath{path.parent_path() /= filename};
+        if ( renameErrorCheck (path, fullPath) )
+            printFileChange(path, filename);
+
+        // Edit filename for menu
+        pair.second.replace_filename(filename);
+    }
     printPause();
 }

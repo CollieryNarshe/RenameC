@@ -15,15 +15,18 @@ void keywordDefaultReplace(std::string& pattern,
 
 void keywordHelpMenu();
 
-void keywordChangeDir(fs::path& path, Filenames& filePaths_copy);
+void keywordChangeDir(fs::path& path, Filenames& filePaths, Filenames& filePaths_copy);
 
 void keywordRemoveFilename(const std::string& pattern, 
                            Filenames& filePaths,
                            Filenames& filePaths_copy);
 
-void keywordRemoveDots(std::string& pattern, 
-                       Filenames& filePaths);
+void keywordRemoveDots(Filenames& filePaths);
 
 void keywordBetween(Filenames& filePaths);
+
+void keywordCapitalize(Filenames& filePaths);
+
+void keywordLower(Filenames& filePaths);
 
 #endif
