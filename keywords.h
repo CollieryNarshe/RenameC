@@ -2,34 +2,28 @@
 #define KEYWORDS_H
 
 #include <string>
+#include <map>
 #include <set>
 #include <vector>
 #include <filesystem>
 
 namespace fs = std::filesystem;
-
+using Filenames = std::map<int16_t, fs::path>;
 
 void keywordDefaultReplace(std::string& pattern, 
-                           const std::vector<fs::path>& filePaths,
-                           std::set<int>& removedFiles);
+                           Filenames& filePaths);
 
 void keywordHelpMenu();
 
-void keywordChangeDir(std::string& path, std::set<int>& removedFiles);
-
-void keywordRestoreFilename(const std::string& pattern, 
-                            const std::vector<fs::path>& filePaths,
-                            std::set<int>& removedFiles);
+void keywordChangeDir(fs::path& path, Filenames& filePaths_copy);
 
 void keywordRemoveFilename(const std::string& pattern, 
-                           const std::vector<fs::path>& filePaths,
-                           std::set<int>& removedFiles);
+                           Filenames& filePaths,
+                           Filenames& filePaths_copy);
 
 void keywordRemoveDots(std::string& pattern, 
-                       const std::vector<fs::path>& filePaths,
-                       const std::set<int>& removedFiles);
+                       Filenames& filePaths);
 
-void keywordBetween(const std::vector<fs::path>& filePaths,
-                    const std::set<int>& removedFiles);
+void keywordBetween(Filenames& filePaths);
 
 #endif

@@ -1,11 +1,12 @@
 #include <iostream>
 #include <filesystem>
+#include <map>
 #include <set>
 #include <string>
 #include <vector> 
 
 namespace fs = std::filesystem;
-
+using Filenames = std::map<int16_t, fs::path>;
 
 
 std::string strReplaceAll(const std::string& origin, const std::string& pat, 
@@ -36,9 +37,9 @@ void printFileChange(const fs::path oldPath, const std::string& newFilename)
 
 
 
-std::string getReplacementInput(const std::vector<fs::path>& matchedPaths)
+std::string getReplacementInput(int16_t index)
 {
-    std::cout << "\n" << matchedPaths.size() << " filenames with this pattern will be renamed.\n"
+    std::cout << "\n" << index << " filenames with this pattern will be renamed.\n"
                     "Press q to cancel or enter new pattern.\n"
                     "Change to: ";
     std::string replacement{};
@@ -46,7 +47,6 @@ std::string getReplacementInput(const std::vector<fs::path>& matchedPaths)
     std::cout << '\n';
 
     return replacement;
-
 }
 
 
@@ -123,38 +123,33 @@ std::string renameFiles(const fs::path& file, const std::string& pat,
 
 
 
-std::vector<fs::path> getFilenames(const std::string& dir)
+std::map<int16_t, fs::path> getFilenames(const fs::path& dir)
 {
-    std::vector<fs::path> filePaths{};
+    std::map<int16_t, fs::path> filePaths{};
+    int16_t idx{};
 
     for ( const auto& path: fs::directory_iterator(dir) )
         {
-            filePaths.push_back(path);
+            filePaths[idx] = path;
+            ++idx;
         }
     return filePaths;
 }
 
 
 
-void printFilenames(const std::vector<fs::path>& paths, 
-                    const std::set<int>& removedFiles, 
+void printFilenames(const std::map<int16_t, fs::path>& paths, 
                     const bool showNums=false)
 {
     std::cout << '\n';
 
-    int idx{};
-    for (const auto& file: paths)
+    for (const auto& pair: paths)
     {
-        // Check if user removed file from list
-        if ( !removedFiles.count(idx) )
-        {
-            // Print index number
-            if (showNums)
-                std::cout << idx << ". ";
+        // Print index number
+        if (showNums)
+            std::cout << pair.first << ". ";
 
-            std::cout << file.filename().string() << '\n';
-        }
-        ++idx;
+        std::cout << pair.second.filename().string() << '\n';
     }
 }
 
@@ -199,7 +194,7 @@ void printPause()
 
 
 
-bool betweenQuitQuery(std::vector<fs::path> matchedPaths)
+bool betweenQuitQuery(const Filenames& matchedPaths)
 {
     if ( !matchedPaths.size() )
     {
@@ -219,4 +214,44 @@ bool betweenQuitQuery(std::vector<fs::path> matchedPaths)
         return false;
     
     return true;
+}
+
+
+
+// Used with splitString to remove spaces from ends of a string
+std::string removeSpace(std::string s)
+{
+    s.erase(s.find_last_not_of(' ') + 1);
+    s.erase( 0, s.find_first_not_of(' ') );
+    return s;
+}
+
+
+
+// Returns a vector of a string split along a delimiter
+std::vector<std::string> splitString(const std::string& str, 
+                                     const std::string& delimiter, 
+                                     bool removeSpaces = true)
+{
+    std::vector<std::string> splitLines{};
+    std::string s{};
+    int16_t idx{};
+    int16_t prev{};
+    
+    while( ( idx = str.find(delimiter, prev) ) != std::string::npos )
+    {
+        s = str.substr(prev, idx - prev);
+        if (removeSpaces)
+            s = removeSpace(s);
+        splitLines.push_back( s );
+        prev = idx + delimiter.length();
+    }
+
+    // Add last substring
+    s = str.substr(prev);
+    if (removeSpaces)
+            s = removeSpace(s);
+    splitLines.push_back( s );
+
+    return splitLines;
 }

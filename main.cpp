@@ -2,28 +2,27 @@
 #include "rnFunctions.h"
 #include <iostream>
 #include <filesystem>
+#include <map>
 #include <utility>
 #include <vector>
 #include <set>
 
 namespace fs = std::filesystem;
+using Filenames = std::map<int16_t, fs::path>;
 
 
 int main(){
     // std::cout << std::unitbuf; // TESTING - cout will output immediately
     std::string pattern{};
-    std::string path{".\\"};
-    std::vector<fs::path> filePaths{};
-    std::set<int> removedFiles{};
-    bool showNums{true};  // toggle printing index # for filenames
+    fs::path directory{".\\"};
+    Filenames filePaths{getFilenames(directory)};
+    Filenames filePaths_copy{filePaths};  // used to restore filenames
+    bool showNums{};                      // toggle printing index #
 
     while (true)
     {
-        // Reset filename list
-        filePaths = getFilenames(path);
-
         // Print filenames and input prompt text
-        printFilenames(filePaths, removedFiles, showNums);
+        printFilenames(filePaths, showNums);
 
         std::cout << "\nKeywords: ?, chdir, dots, between, q\n"
                  "Enter keyword or pattern to change: ";
@@ -40,27 +39,25 @@ int main(){
             keywordHelpMenu();
 
         else if (pattern == "chdir")
-            keywordChangeDir(path, removedFiles);
+            keywordChangeDir(directory, filePaths_copy);
 
-        else if ( pattern.rfind("rm+", 0) == 0 )
-            keywordRestoreFilename(pattern, filePaths, removedFiles);            
-
-        else if (pattern == "rm-restore")
-            removedFiles.clear();
+        else if (pattern == "!refresh"){
+            filePaths = getFilenames(directory);
+            filePaths_copy = filePaths; }
 
         // Remove files from list
         else if (pattern.rfind("rm", 0) == 0)
-            keywordRemoveFilename(pattern, filePaths, removedFiles);
+            keywordRemoveFilename(pattern, filePaths, filePaths_copy);
 
         else if (pattern == "dots")
-            keywordRemoveDots(pattern, filePaths, removedFiles);
+            keywordRemoveDots(pattern, filePaths);
 
         else if (pattern == "between")
-            keywordBetween(filePaths, removedFiles);
+            keywordBetween(filePaths);
 
         // Get second pattern:
         else
-            keywordDefaultReplace(pattern, filePaths, removedFiles);
+            keywordDefaultReplace(pattern, filePaths);
     }
 
     return 0;
