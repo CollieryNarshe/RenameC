@@ -39,6 +39,9 @@ bool renameErrorCheck(fs::path path, fs::path new_path);
 // Returns a <map> of filenames in a given directory
 std::map<int16_t, fs::path> getFilenames(const fs::path& dir);
 
+// Remove the program name from the menu
+void removeFileByName(Filenames& files, const fs::path path);
+
 // Print filenames for menu
 void printFilenames(const std::map<int16_t, fs::path>& paths, 
                     const bool showNums=false);

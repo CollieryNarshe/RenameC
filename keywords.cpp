@@ -15,14 +15,26 @@ void keywordDefaultReplace(std::string& pattern,
     std::string filename{};
 
     //Check for matches
-    for (const auto& pair: filePaths)
-    {
-        filename = lowercase( pair.second.filename().string() );
-        if (!(filename.find(lowercase(pattern)) == std::string::npos) )
-            matchedPaths[pair.first] = pair.second;
+    if (pattern == "#begin" || pattern == "#end")
+        matchedPaths = filePaths;
 
+    else
+    {
+        for (const auto& pair: filePaths)
+        {
+            if (pattern == "#ext" && pair.second.has_extension())
+                matchedPaths[pair.first] = pair.second;
+
+            else
+            {
+            filename = lowercase( pair.second.filename().string() );
+            if (!(filename.find(lowercase(pattern)) == std::string::npos) )
+                matchedPaths[pair.first] = pair.second;
+            }
+        }
     }
     
+    // Exit function if no matches found
     if ( !matchedPaths.size() )
     {
         std::cout << "\nNo filenames contain this pattern.\n";
@@ -54,14 +66,17 @@ void keywordDefaultReplace(std::string& pattern,
 void keywordHelpMenu()
 {
     std::cout << 
+        "\n\n========================================================="
+        "\npatterns:    #start, #end, #ext\n"
         "\nchdir:       Change directory."
-        "\n!dots:        Delete periods from all filenames and replace with spaces. Ignores prefixes and extensions."
+        "\n!dots:       Delete periods from all filenames and replace with spaces. Ignores prefixes and extensions."
         "\nbetween:     Remove text between (and not including) two patterns."
         "\n!index:      Show index numbers for filenames."
         "\nrm #(,#):    Remove or restore the file(s) at index #s (to omit rename)."
         "\n!cap:        Capitalize each word of all files."
-        "\n!refresh:    Reload filenames from directory and restore removed files."
-        "\nq, exit, '': Quit.\n";
+        "\n!reload:     Reload filenames from directory and restore removed files."
+        "\nq, exit, '': Quit.\n"
+        "=========================================================\n";
     printPause();
 }
 

@@ -11,20 +11,23 @@ namespace fs = std::filesystem;
 using Filenames = std::map<int16_t, fs::path>;
 
 
-int main(){
-    // std::cout << std::unitbuf; // TESTING - cout will output immediately
+int main(int argc, char* argv[])
+{
+    const fs::path programName{argv[0]};
+
     std::string pattern{};
     fs::path directory{".\\"};
     Filenames filePaths{getFilenames(directory)};
-    Filenames filePaths_copy{filePaths};  // used to restore filenames
-    bool showNums{};                      // toggle printing index #
+    Filenames filePaths_copy{filePaths};      // Used to restore filenames
+    removeFileByName(filePaths, programName); // Remove program name from menu
+    bool showNums{};                          // Toggle printing index #
 
     while (true)
     {
         // Print filenames and input prompt text
         printFilenames(filePaths, showNums);
 
-        std::cout << "\nKeywords: ?, chdir, !dots, between, q\n"
+        std::cout << "\nKeywords: !help, chdir, !dots, between, q\n"
                  "Enter keyword or pattern to change: ";
         getline(std::cin, pattern);
 
@@ -35,7 +38,7 @@ int main(){
         else if (pattern == "!index") 
             showNums = !showNums;
             
-        else if (pattern == "?" ) 
+        else if (pattern == "!help" ) 
             keywordHelpMenu();
 
         else if (pattern == "chdir")

@@ -28,11 +28,12 @@ std::string strReplaceAll(std::string origin, const std::string& pat,
 
     if ( pat.empty() )
         return origin;
-        
+    
     size_t startPos{ start };
     while( (startPos = newString_lower.find(pat_lower, startPos) ) != std::string::npos )
     {
         origin.replace(startPos, pat.length(), newPat);
+        newString_lower.replace(startPos, pat.length(), newPat);
         startPos += newPat.length();
     }
     
@@ -121,14 +122,26 @@ bool renameErrorCheck(fs::path path, fs::path new_path)
 std::string renameFiles(const fs::path& file, const std::string& pat, 
                         const std::string& newPat)
 {
+    std::string filename{file.filename().string()};
+    fs::path newFile{file};
+
     // Rename a string of filename
-    std::string newFilename{ strReplaceAll(file.filename().string(), pat, newPat) };
+    if (pat == "#begin")
+        newFile.replace_filename(newPat + filename);
+    if (pat == "#ext")
+        newFile.replace_filename(file.stem().string() + newPat);
+    else if (pat == "#end")
+    {
+        filename = file.stem().string();
+        newFile.replace_filename(filename + newPat + file.extension().string());
+    }
+    else
+        newFile.replace_filename(strReplaceAll(filename, pat, newPat));
 
     // Rename the actual files
-    fs::path fullPath{ file.parent_path() /= newFilename };
-    renameErrorCheck(file, fullPath);
+    renameErrorCheck(file, newFile);
 
-    return newFilename;
+    return newFile.filename().string();
 }
 
 
@@ -146,6 +159,18 @@ std::map<int16_t, fs::path> getFilenames(const fs::path& dir)
     return filePaths;
 }
 
+
+void removeFileByName(Filenames& files, const fs::path path)
+{
+    for (auto& f : files)
+    {
+        if (f.second.filename() == path.filename())
+        {
+            files.erase(f.first);
+            return;
+        }
+    }
+}
 
 
 void printFilenames(const std::map<int16_t, fs::path>& paths, 
