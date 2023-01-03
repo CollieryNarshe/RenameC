@@ -1,3 +1,4 @@
+#include "colors.h"
 #include <algorithm>  // For transform
 #include <iostream>
 #include <filesystem>
@@ -44,17 +45,22 @@ std::string strReplaceAll(std::string origin, const std::string& pat,
 
 void printFileChange(const fs::path oldPath, const std::string& newFilename)
 {
-    std::cout << oldPath.filename().string() 
-              << " -->  " << newFilename << '\n';
+    setColor(Color::pink);
+    std::cout << oldPath.filename().string();
+    setColor(Color::green);
+    std::cout << "\n   ---->  " << newFilename << '\n';
+    resetColor();
 }
 
 
 
 std::string getReplacementInput(int16_t index)
 {
-    std::cout << "\n" << index << " filenames with this pattern will be renamed.\n"
-                    "Press q to cancel or enter new pattern.\n"
-                    "Change to: ";
+    setColor(Color::red);
+    std::cout << "\n" << index << " filenames with this pattern will be renamed.\n";
+    resetColor();
+    std::cout << "Press q to cancel or enter new pattern.\n"
+                 "Change to: ";
     std::string replacement{};
     std::getline(std::cin, replacement);
     std::cout << '\n';
@@ -107,19 +113,22 @@ bool renameErrorCheck(fs::path path, fs::path new_path)
 {
     try
     {
+        // std::cout << path << "  |  " << new_path << '\n'; // test
         fs::rename(path, new_path);
         return true;
     }
     catch(const std::exception& e)
     {
+        setColor(Color::red);
         std::cout << e.what() << '\n';
+        resetColor();
         return false;
     }
 }
 
 
 
-std::string renameFiles(const fs::path& file, const std::string& pat, 
+std::string renameFile(const fs::path& file, const std::string& pat, 
                         const std::string& newPat)
 {
     std::string filename{file.filename().string()};
@@ -139,8 +148,8 @@ std::string renameFiles(const fs::path& file, const std::string& pat,
         newFile.replace_filename(strReplaceAll(filename, pat, newPat));
 
     // Rename the actual files
-    renameErrorCheck(file, newFile);
-
+    if ( !renameErrorCheck(file, newFile) )
+        return "";
     return newFile.filename().string();
 }
 
@@ -176,6 +185,7 @@ void removeFileByName(Filenames& files, const fs::path path)
 void printFilenames(const std::map<int16_t, fs::path>& paths, 
                     const bool showNums=false)
 {
+    setColor(Color::red);
     std::cout << '\n';
 
     for (const auto& pair: paths)
@@ -186,12 +196,28 @@ void printFilenames(const std::map<int16_t, fs::path>& paths,
 
         std::cout << pair.second.filename().string() << '\n';
     }
+    resetColor();
+}
+
+
+
+//Used with between and dots to make sure new filenames don't have conflict (same names)
+bool checkForRepeats(std::vector<std::string> paths, fs::path path)
+{
+    if (paths.empty())
+        return false;
+    
+    std::string filename{ path.generic_string() };
+    if (std::find(paths.begin(), paths.end(), filename) != paths.end())
+        return true;
+    return false;
 }
 
 
 
 std::string deleteBetween(const fs::path& path, 
-                          const std::string& lpat, const std::string& rpat)
+                          const std::string& lpat, const std::string& rpat,
+                          const std::string& replacement, std::vector<std::string>& renamed)
 {
     std::string filename {path.filename().string()};
 
@@ -207,13 +233,30 @@ std::string deleteBetween(const fs::path& path,
     else
         leftIndex += lpat.length();
     
-    // Edit filename text
+    // Adjust for patterns
+    if (lpat == "#begin")
+        leftIndex = 0;
+    if (rpat == "#end")
+        rightIndex = path.stem().string().length();
+
+    // Edit filename string
     filename.erase(filename.begin() + leftIndex, filename.begin() + rightIndex);
+    filename.insert(leftIndex, replacement);
+
+    fs::path fullPath{path.parent_path() /= filename};
+
+    // Make sure multiple files are not named the same name:
+    if (checkForRepeats(renamed, fullPath.generic_string()))
+    {
+        setColor(Color::red); std::cout << "File naming error for " << path.filename() << 
+                           ": Two files cannot have the same name."; resetColor();
+        return "";
+    }
+    renamed.push_back(fullPath.generic_string());
 
     // Rename actual files
-    fs::path fullPath{path.parent_path() /= filename};
-    renameErrorCheck(path, fullPath);
-
+    if ( !renameErrorCheck(path, fullPath) )
+        return "";
     return filename;
 }
 
@@ -223,7 +266,7 @@ void printPause()
 {
     std::cout << "\nPress ENTER to continue...";
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::cout << "\n\n==============================" << std::endl;
+    std::cout << "==============================" << std::endl;
 }
 
 
@@ -232,17 +275,20 @@ bool betweenQuitQuery(const Filenames& matchedPaths)
 {
     if ( !matchedPaths.size() )
     {
+        setColor(Color::red);
         std::cout << "\nNo filenames contain this pattern.\n";
+        resetColor();
         printPause();
         return false;
     }
 
-    std::cout << "\n" << matchedPaths.size() << " filenames with this pattern will be renamed.\n"
-                 "Press q to cancel or ENTER to continue.\n";
+    setColor(Color::red);
+    std::cout << '\n' << matchedPaths.size() << " filenames with this pattern will be renamed.\n";
+    resetColor();
+    std::cout << "Press q to cancel or ENTER to continue.\n";
 
     std::string query{};
     std::getline(std::cin, query);
-    std::cout << '\n';
 
     if (query == "q")
         return false;

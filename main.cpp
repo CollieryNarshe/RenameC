@@ -1,5 +1,7 @@
 #include "keywords.h"
+#include "colors.h"
 #include "rnFunctions.h"
+#include <windows.h>
 #include <iostream>
 #include <filesystem>
 #include <map>
@@ -27,8 +29,10 @@ int main(int argc, char* argv[])
         // Print filenames and input prompt text
         printFilenames(filePaths, showNums);
 
-        std::cout << "\nKeywords: !help, chdir, !dots, between, q\n"
-                 "Enter keyword or pattern to change: ";
+        setColor(Color::pink);
+        std::cout << "\nKeywords: !help, chdir, !dots, between, q\n";
+        resetColor();
+        std::cout << "Enter keyword or pattern to change: ";
         getline(std::cin, pattern);
 
         // Check for keywords:
@@ -44,7 +48,7 @@ int main(int argc, char* argv[])
         else if (pattern == "chdir")
             keywordChangeDir(directory, filePaths, filePaths_copy);
 
-        else if (pattern == "!refresh"){
+        else if (pattern == "!reload"){
             filePaths = getFilenames(directory);
             filePaths_copy = filePaths; }
 

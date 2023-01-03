@@ -30,7 +30,7 @@ std::string restoreDotEnds(const fs::path& file, std::string newFilename,
                            bool& dotAtStart);
 
 // Rename a file using given two patterns
-std::string renameFiles(const fs::path& file, const std::string& pat, 
+std::string renameFile(const fs::path& file, const std::string& pat, 
                         const std::string& newPat);
 
 // Rename a file given full paths
@@ -46,9 +46,11 @@ void removeFileByName(Filenames& files, const fs::path path);
 void printFilenames(const std::map<int16_t, fs::path>& paths, 
                     const bool showNums=false);
 
+
 // Remove part of string between two patterns
 std::string deleteBetween(const fs::path& path, 
-                          const std::string& lpat, const std::string& rpat);
+                          const std::string& lpat, const std::string& rpat,
+                          const std::string& replacement, std::vector<std::string>& renamed);
 
 // Pause program with cin and printed message
 void printPause();
