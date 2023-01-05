@@ -62,11 +62,8 @@ int main(int argc, char* argv[])
         else if (pattern == "between")
             keywordBetween(filePaths);
 
-        else if (pattern == "!cap")
-            keywordCapitalize(filePaths);
-        
-        else if (pattern == "!lower")
-            keywordLower(filePaths);
+        else if (pattern == "!lower" || pattern == "!cap")
+            keywordCapOrLower(filePaths, pattern);
 
         // Get second pattern:
         else

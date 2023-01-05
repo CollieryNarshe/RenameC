@@ -6,9 +6,12 @@
 #include <set>
 #include <vector>
 #include <filesystem>
+#include <string_view>
 
 namespace fs = std::filesystem;
 using Filenames = std::map<int16_t, fs::path>;
+
+void renameAndMenuUpdate(Filenames& matchedPaths, Filenames& originalPaths);
 
 void keywordDefaultReplace(std::string& pattern, 
                            Filenames& filePaths);
@@ -25,8 +28,6 @@ void keywordRemoveDots(Filenames& filePaths);
 
 void keywordBetween(Filenames& filePaths);
 
-void keywordCapitalize(Filenames& filePaths);
-
-void keywordLower(Filenames& filePaths);
+void keywordCapOrLower(Filenames& filePaths, std::string_view pattern);
 
 #endif
