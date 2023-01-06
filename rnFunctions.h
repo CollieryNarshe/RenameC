@@ -41,7 +41,7 @@ fs::path renameFile(const fs::path& file, const std::string& pat,
 bool renameErrorCheck(fs::path path, fs::path new_path);
 
 // Returns a <map> of filenames in a given directory
-std::map<int16_t, fs::path> getFilenames(const fs::path& dir);
+Filenames getFilenames(const std::set<fs::path>& dirs);
 
 // Remove the program name from the menu
 void removeFileByName(Filenames& files, const fs::path path);
@@ -60,7 +60,7 @@ void printPause();
 // Used with splitString to remove spaces from ends of a string
 std::string removeSpace(std::string s);
 
-// Returns a vector of a string split along a delimiter
+// Returns a vector of a string split along a delimiter (uses function removeSpace)
 std::vector<std::string> splitString(const std::string& str, 
                                      const std::string& delimiter, 
                                      bool removeSpaces = true);

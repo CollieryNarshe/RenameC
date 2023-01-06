@@ -18,7 +18,14 @@ void keywordDefaultReplace(std::string& pattern,
 
 void keywordHelpMenu();
 
-void keywordChangeDir(fs::path& path, Filenames& filePaths, Filenames& filePaths_copy);
+void keywordAddAllDirs(std::set<fs::path>& directories,
+                       Filenames& filePaths, Filenames& filePaths_copy);
+
+void keywordRemoveDir(std::set<fs::path>& directories,
+                       Filenames& filePaths, Filenames& filePaths_copy);
+
+void keywordChangeDir(std::set<fs::path>& paths, Filenames& filePaths, 
+                      Filenames& filePaths_copy, const bool add = false);
 
 void keywordRemoveFilename(const std::string& pattern, 
                            Filenames& filePaths,
@@ -29,5 +36,7 @@ void keywordRemoveDots(Filenames& filePaths);
 void keywordBetween(Filenames& filePaths);
 
 void keywordCapOrLower(Filenames& filePaths, std::string_view pattern);
+
+void keywordPWD(const std::set<fs::path>& directories);
 
 #endif

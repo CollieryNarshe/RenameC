@@ -16,21 +16,19 @@ using Filenames = std::map<int16_t, fs::path>;
 int main(int argc, char* argv[])
 {
     const fs::path programName{argv[0]};
-
     std::string pattern{};
-    fs::path directory{".\\"};
-    Filenames filePaths{getFilenames(directory)};
+    std::set<fs::path> directories{programName.parent_path()};
+    Filenames filePaths{getFilenames(directories)};
     Filenames filePaths_copy{filePaths};      // Used to restore filenames
-    removeFileByName(filePaths, programName); // Remove program name from menu
     bool showNums{};                          // Toggle printing index #
 
     while (true)
     {
-        // Print filenames and input prompt text
-        printFilenames(filePaths, showNums);
+        removeFileByName(filePaths, programName); // Remove program name from menu
+        printFilenames(filePaths, showNums);      // Print filenames
 
         setColor(Color::pink);
-        std::cout << "\nKeywords: !help, chdir, !dots, between, q\n";
+        std::cout << "\nKeywords examples: !help, chdir, !dots, between, q\n";
         resetColor();
         std::cout << "Enter keyword or pattern to change: ";
         getline(std::cin, pattern);
@@ -46,11 +44,23 @@ int main(int argc, char* argv[])
             keywordHelpMenu();
 
         else if (pattern == "chdir")
-            keywordChangeDir(directory, filePaths, filePaths_copy);
+            keywordChangeDir(directories, filePaths, filePaths_copy);
+
+        else if (pattern == "adir")
+            keywordChangeDir(directories, filePaths, filePaths_copy, true);
+
+        else if (pattern == "adir+")
+            keywordAddAllDirs(directories, filePaths, filePaths_copy);
+
+        else if (pattern == "adir-")
+            keywordRemoveDir(directories, filePaths, filePaths_copy);
+
+        else if (pattern == "!pwd")
+            keywordPWD(directories);
 
         else if (pattern == "!reload"){
-            filePaths = getFilenames(directory);
-            filePaths_copy = filePaths; }
+            filePaths = getFilenames(directories);
+            filePaths_copy = filePaths;}
 
         // Remove files from list
         else if (pattern.rfind("rm", 0) == 0)

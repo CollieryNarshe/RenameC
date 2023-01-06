@@ -11,6 +11,31 @@ using Filenames = std::map<int16_t, fs::path>;
 
 
 
+void keywordHelpMenu()
+{
+    setColor(Color::green);
+
+    std::cout << 
+        "\n========================================================="
+        "\nPatterns:            #begin, #end, #ext\n\nKeywords:"
+        "\nchdir, adir, adir-:  Change, add, or remove a directory."
+        "\nadir+:               Add all directories from current paths."
+        "\n!pwd:                Print work directory."
+        "\n!dots:               Delete periods from all filenames and replace with spaces. Ignores prefixes and extensions."
+        "\nbetween:             Remove text between (and not including) two patterns."
+        "\n!index:              Show index numbers for filenames in menu."
+        "\nrm #(,#):            Remove or restore the file(s) at index #s (to omit from rename)."
+        "\n!lower:              Lowercase every letter."
+        "\n!cap:                Capitalize every word."
+        "\n!reload:             Reload filenames from directory and restore removed files."
+        "\nq, exit, '':         Quit.\n"
+        "=========================================================\n";
+    resetColor();
+    printPause();
+}
+
+
+
 void renameAndMenuUpdate(Filenames& newPaths, Filenames& oldPaths)
 {
     for (auto& pair: newPaths)
@@ -87,7 +112,6 @@ void keywordDefaultReplace(std::string& pattern,
         return;
     }
 
-
     // Get new filenames
     Filenames matchedPaths_copy{matchedPaths};
     for ( auto& pair: matchedPaths_copy )
@@ -117,30 +141,82 @@ void keywordDefaultReplace(std::string& pattern,
 
 
 
-void keywordHelpMenu()
+void keywordAddAllDirs(std::set<fs::path>& directories,
+                       Filenames& filePaths, Filenames& filePaths_copy)
 {
-    setColor(Color::green);
+    std::set<fs::path> directories_temp{directories};
+    int16_t count{};
+    for (auto& pair : filePaths_copy)
+    {
+        // Check if file is a directory and not already added
+        if (fs::is_directory(pair.second) && (directories.find(pair.second) == directories.end()))
+        {
+            directories_temp.insert(pair.second);
+            ++count;
+            setColor(Color::green);
+            std::cout << pair.second.generic_string() << '\n';
+            resetColor();
+        }
+    }
 
-    std::cout << 
-        "\n========================================================="
-        "\nPatterns:    #begin, #end, #ext\n\nKeywords:"
-        "\nchdir:       Change directory."
-        "\n!dots:       Delete periods from all filenames and replace with spaces. Ignores prefixes and extensions."
-        "\nbetween:     Remove text between (and not including) two patterns."
-        "\n!index:      Show index numbers for filenames in menu."
-        "\nrm #(,#):    Remove or restore the file(s) at index #s (to omit from rename)."
-        "\n!lower:      Lowercase every letter."
-        "\n!cap:        Capitalize every word."
-        "\n!reload:     Reload filenames from directory and restore removed files."
-        "\nq, exit, '': Quit.\n"
-        "=========================================================\n";
-    resetColor();
-    printPause();
+    // Message if nothing found.
+    if (!count)
+    {
+        setColor(Color::red);
+        std::cout << "No new directories found.\n"; 
+        resetColor();
+        printPause();
+        return;
+    }
+
+    // Chance to quit
+    std::string query{};
+    std::cout << "Do you wish to add these directories? q to quit.";
+    getline(std::cin, query);
+    if (query == "q")
+        return;
+
+    // Add directories and reset menu files
+    directories = directories_temp;
+    filePaths = getFilenames(directories);
+    filePaths_copy = filePaths;
 }
 
 
+void keywordRemoveDir(std::set<fs::path>& directories,
+                       Filenames& filePaths, Filenames& filePaths_copy)
+{
+    setColor(Color::green);
+    for (auto& dir: directories)
+    {
+        std::cout << dir.generic_string() << '\n';
+    }
+    resetColor();
 
-void keywordChangeDir(fs::path& path, Filenames& filePaths, Filenames& filePaths_copy)
+    std::string query{};
+    std::cout << "Enter the directory path you wish to remove or q to quit:\n> ";
+    getline(std::cin, query);
+    if (query == "q" || query == "")
+        return;
+
+    // If dir input is not in the list
+    if (directories.find(query) == directories.end())
+    {
+        setColor(Color::red);
+        std::cout << "That directory has not been added.\n";
+        resetColor();
+        printPause();
+        return;
+    }
+
+    directories.erase(query);
+    filePaths = getFilenames(directories);
+    filePaths_copy = filePaths;
+}
+
+
+void keywordChangeDir(std::set<fs::path>& directories, Filenames& filePaths, 
+                      Filenames& filePaths_copy, const bool add = false)
 {
     std::string newDir{};
     std::cout << "Enter new directory: ";
@@ -148,12 +224,17 @@ void keywordChangeDir(fs::path& path, Filenames& filePaths, Filenames& filePaths
 
     if (fs::exists(newDir))
     {
-        path = newDir;
-        filePaths = getFilenames(path);
-        filePaths_copy = filePaths;
         setColor(Color::green);
-        std::cout << "\nDirectory changed.\n";
+        if (!add){
+            directories.clear();
+            std::cout << "\nDirectory changed.\n"; }
+        else
+            std::cout << "\nDirectory added.\n";
         resetColor();
+
+        directories.insert(fs::canonical(newDir));
+        filePaths = getFilenames(directories);
+        filePaths_copy = filePaths;
     }
     else
     {
@@ -182,7 +263,7 @@ void keywordRemoveFilename(const std::string& pattern,
             if ( index < 0 || index > (filePaths_copy.size() - 1) )
             {
                 setColor(Color::red);
-                std::cout << "\nIndex " << index << " is out of bounds.\n";
+                std::cout << "Index " << index << " is out of bounds.\n";
                 resetColor();
                 continue;
             }
@@ -373,4 +454,13 @@ void keywordCapOrLower(Filenames& filePaths, std::string_view pattern)
     renameAndMenuUpdate(matchedPaths, filePaths);
 }
 
-
+void keywordPWD(const std::set<fs::path>& directories)
+{
+    for (auto& dir: directories)
+    {
+        setColor(Color::green);
+        std::cout << dir.generic_string() << '\n';
+        resetColor();
+    }
+    printPause();
+}

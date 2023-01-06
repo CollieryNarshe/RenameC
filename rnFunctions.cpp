@@ -5,7 +5,7 @@
 #include <map>
 #include <set>
 #include <string>
-#include <vector> 
+#include <vector>
 #include <cstddef>
 
 namespace fs = std::filesystem;
@@ -174,16 +174,18 @@ fs::path renameFile(const fs::path& file, const std::string& pat,
 
 
 
-std::map<int16_t, fs::path> getFilenames(const fs::path& dir)
+Filenames getFilenames(const std::set<fs::path>& dirs)
 {
-    std::map<int16_t, fs::path> filePaths{};
+    Filenames filePaths{};
     int16_t idx{};
-
-    for ( const auto& path: fs::directory_iterator(dir) )
-        {
-            filePaths[idx] = path;
-            ++idx;
-        }
+    for (auto& dir: dirs)
+    {
+        for ( const auto& path: fs::directory_iterator(dir) )
+            {
+                filePaths[idx] = path;
+                ++idx;
+            }
+    }
     return filePaths;
 }
 
