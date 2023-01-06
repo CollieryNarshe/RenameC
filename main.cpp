@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
 {
     const fs::path programName{argv[0]};
     std::string pattern{};
-    std::set<fs::path> directories{programName.parent_path()};
+    std::set<fs::path> directories{fs::canonical(".\\")};
     Filenames filePaths{getFilenames(directories)};
     Filenames filePaths_copy{filePaths};      // Used to restore filenames
     bool showNums{};                          // Toggle printing index #
@@ -28,9 +28,9 @@ int main(int argc, char* argv[])
         printFilenames(filePaths, showNums);      // Print filenames
 
         setColor(Color::pink);
-        std::cout << "\nKeywords examples: !help, chdir, !dots, between, q\n";
+        std::cout << "\nKeywords examples: !help, chdir, !dots, q\n";
         resetColor();
-        std::cout << "Enter keyword or pattern to change: ";
+        std::cout << "Enter keyword or pattern to change:\n> ";
         getline(std::cin, pattern);
 
         // Check for keywords:
