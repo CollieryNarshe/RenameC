@@ -6,6 +6,7 @@
 #include <set>
 #include <vector>
 #include <string_view>
+#include <regex>
 
 using Filenames = std::map<int16_t, fs::path>;
 
@@ -16,22 +17,34 @@ void keywordHelpMenu()
     setColor(Color::green);
 
     std::cout << 
-        "\n========================================================="
-        "\nPatterns:            #begin, #end, #ext\n\nKeywords:"
-        "\nchdir, adir, adir-:  Change, add, or remove a directory."
-        "\nadir+:               Add all directories from current paths."
+        // "\n========================================================="
+        "\nPattern matches:     #begin, #end, #ext, ? (a digit)"
+
+        "\n\nDirectory keywords:"
+        "\nchdir, adir, rmdir:  Change, add, or remove a directory."
+        "\nadir+:               Add all directories from current path(s)."
         "\n!pwd:                Print work directory."
-        "\n!dots:               Delete periods from all filenames and replace with spaces. Ignores prefixes and extensions."
-        "\nbetween:             Remove text between (and not including) two patterns."
+        "\n!rmdirs, !rmfiles:   Remove all files or folders from menu."
         "\n!index:              Show index numbers for filenames in menu."
-        "\nrm #(,#):            Remove or restore the file(s) at index #s (to omit from rename)."
+        "\nrm #(,#):            Remove or restore the menu filename(s) at given index #(s)."
+
+        "\n\nRename keywords:"
+        "\nbetween:             Remove text between (and not including) two patterns."
+        "\n!dots:               Remove periods from all filenames and replace with spaces. Ignores prefixes and extensions."
+        "\n!series:             Rename files with set parameters, especially filenames with s01e01 type pattern."
+        "\n!rnsubs:             Change the filenames of a given directory to the filenames in the menu, except extension. Useful for subtitle matching"
         "\n!lower:              Lowercase every letter."
         "\n!cap:                Capitalize every word."
+
+        "\n\nOther keywords:"
         "\n!reload:             Reload filenames from directory and restore removed files."
-        "\nq, exit, '':         Quit.\n"
-        "=========================================================\n";
+        "\n!print:              Creates a file with the list of file and folders currently in menu."
+        "\nq, exit, '':         Quit.\n\n";
+        // "\n=========================================================\n";
     resetColor();
-    printPause();
+    std::cout << "Press ENTER to return to filename menu.\n"
+                 "Or else type a keyword or pattern to change:\n> ";
+    // printPause();
 }
 
 
@@ -83,7 +96,7 @@ void keywordDefaultReplace(std::string& pattern,
             else
             {
             filename = lowercase( pair.second.filename().string() );
-            if (!(filename.find(lowercase(pattern)) == std::string::npos) )
+            if ( checkPatternWithRegex(filename, lowercase(pattern)) )
                 matchedPaths[pair.first] = pair.second;
             }
         }
@@ -93,42 +106,38 @@ void keywordDefaultReplace(std::string& pattern,
     if ( !matchedPaths.size() )
     {
         setColor(Color::red);
-        std::cout << "\nNo filenames contain this pattern.\n";
+        std::cout << "\nNo filenames to change.\n";
         resetColor();
         printPause();
         return;
     }
     // Get second input (replacement pattern)
-    std::cerr << "Enter replacement pattern: "; 
+    std::cout << "Enter replacement pattern: "; 
     std::string replacement{};
     std::getline(std::cin, replacement);
     std::cout << '\n';
 
-    if (pattern == replacement)
-    {
-        setColor(Color::red);
-        std::cout << "Pattern and replacement are the same.\n";
-        resetColor();
-        return;
-    }
-
     // Get new filenames
-    Filenames matchedPaths_copy{matchedPaths};
-    for ( auto& pair: matchedPaths_copy )
+    std::string temp_pattern{pattern};
+    fs::path temp_filename{};
+    for ( auto pair = matchedPaths.cbegin(); pair != matchedPaths.cend(); ++pair)
     {
-        matchedPaths[pair.first] = renameFile(pair.second, pattern, replacement);
-
-        if (!checkMapItemUnique(filePaths, matchedPaths[pair.first]))
+        temp_pattern = convertPatternWithRegex(pair->second.filename().string(), pattern);
+        temp_filename = renameFile(pair->second, temp_pattern, replacement);
+        // Check for repeat names
+        if (fs::exists(temp_filename) || !checkMapItemUnique(matchedPaths, temp_filename))
             {
                 setColor(Color::red);
-                std::cout << "Cannot rename " << filePaths[pair.first].filename() << " (Filename " << matchedPaths[pair.first].filename() << " already exists.)\n"; 
+                std::cout << "Cannot rename " << filePaths[pair->first].filename() << " (Filename " << temp_filename.filename() << " already exists.)\n"; 
                 resetColor();
-                matchedPaths.erase(pair.first);
+                matchedPaths.erase(pair);
                 continue;
             }
+        else
+            matchedPaths[pair->first] = temp_filename;
 
         // Print filename and changes
-        printFileChange(filePaths[pair.first], matchedPaths[pair.first]);
+        printFileChange(filePaths[pair->first], matchedPaths[pair->first]);
     }
 
     // Chance to quit
@@ -145,7 +154,7 @@ void keywordAddAllDirs(std::set<fs::path>& directories,
                        Filenames& filePaths, Filenames& filePaths_copy)
 {
     std::set<fs::path> directories_temp{directories};
-    int16_t count{};
+    int32_t count{};
     for (auto& pair : filePaths_copy)
     {
         // Check if file is a directory and not already added
@@ -183,21 +192,30 @@ void keywordAddAllDirs(std::set<fs::path>& directories,
 }
 
 
-void keywordRemoveDir(std::set<fs::path>& directories,
+void keywordRemoveDir(std::string pattern, std::set<fs::path>& directories,
                        Filenames& filePaths, Filenames& filePaths_copy)
 {
-    setColor(Color::green);
-    for (auto& dir: directories)
-    {
-        std::cout << dir.generic_string() << '\n';
-    }
-    resetColor();
-
     std::string query{};
-    std::cout << "Enter the directory path you wish to remove or q to quit:\n> ";
-    getline(std::cin, query);
-    if (query == "q" || query == "")
-        return;
+    std::string pattern_end{removeSpace(pattern.substr(5))};
+
+    // Check if address is already given
+    if (fs::exists(pattern_end))
+        query = pattern_end;
+    else
+    {
+        setColor(Color::green);
+        for (auto& dir: directories)
+        {
+            std::cout << dir.generic_string() << '\n';
+        }
+        resetColor();
+
+        std::cout << "Enter the directory path you wish to remove or q to quit:\n> ";
+        getline(std::cin, query);
+
+        if (query == "q" || query == "")
+            return;
+    }
 
     // If dir input is not in the list
     if (directories.find(query) == directories.end())
@@ -215,12 +233,27 @@ void keywordRemoveDir(std::set<fs::path>& directories,
 }
 
 
-void keywordChangeDir(std::set<fs::path>& directories, Filenames& filePaths, 
-                      Filenames& filePaths_copy, const bool add = false)
+void keywordChangeDir(const std::string& pattern, std::set<fs::path>& directories, 
+                      Filenames& filePaths, Filenames& filePaths_copy, 
+                      const bool add = false)
 {
     std::string newDir{};
-    std::cout << "Enter new directory: ";
+    std::string pattern_end{};
+    if (add) // keyword adir
+        pattern_end = removeSpace(pattern.substr(4));
+    else     // keyword chdir
+        pattern_end = removeSpace(pattern.substr(5));
+
+    if (fs::exists(pattern_end))
+        newDir = pattern_end;
+    else
+    {
+    std::cout << "Enter new directory or q to quit:\n> ";
     getline(std::cin, newDir);
+    }
+
+    if (newDir == "q" || newDir == "")
+        return;
 
     if (fs::exists(newDir))
     {
@@ -288,7 +321,7 @@ void keywordRemoveFilename(const std::string& pattern,
     {
         std::cerr << e.what() << '\n';
         setColor(Color::red);
-        std::cout << "\nIncorrect usage of rm #. Use keyword ? for more info.\n";
+        std::cout << "\nIncorrect usage of rm #. Use keyword !help for more info.\n";
         resetColor();
     }
 }
@@ -327,11 +360,8 @@ void keywordRemoveDots(Filenames& filePaths)
         new_filename = new_path.filename().string();
         old_filename = pair.second.filename().string();
 
-        // Check if a match and print
-        if(old_filename == new_filename)
-            continue;
-
-        if (!checkMapItemUnique(filePaths, new_path))
+        // Check for naming conflicts
+        if (fs::exists(new_path) || !checkMapItemUnique(matchedPaths, new_path))
             {
                 setColor(Color::red);
                 std::cout << "Cannot rename \"" << old_filename << "\" (Filename \"" << new_filename << "\" already exists.)\n"; 
@@ -359,7 +389,6 @@ void keywordRemoveDots(Filenames& filePaths)
 
 void keywordBetween(Filenames& filePaths)
 {
-    std::string filename;
     std::string lpat{};
     std::string rpat{};
     std::string replacement{};
@@ -374,7 +403,7 @@ void keywordBetween(Filenames& filePaths)
     
     // Get matched filenames
     Filenames matchedPaths{};
-    Filenames renamed{};      // To check for naming conflicts
+    Filenames renamed_temp{};      // To check for naming conflicts
     for (auto& pair: filePaths)
     {
         fs::path path{pair.second};
@@ -389,7 +418,7 @@ void keywordBetween(Filenames& filePaths)
             continue;
 
         // Make sure multiple files are not named the same name:
-        if (!checkMapItemUnique(renamed, fullPath) || !checkMapItemUnique(filePaths, fullPath))
+        if (fs::exists(fullPath) || !checkMapItemUnique(renamed_temp, fullPath))
         {
             setColor(Color::red);
             std::cout << "Cannot rename " << path.filename() << " (Filename " << fullPath.filename() << " already exists.)\n"; 
@@ -397,7 +426,7 @@ void keywordBetween(Filenames& filePaths)
             continue;
         }
 
-        renamed[idx] = fullPath;
+        renamed_temp[idx] = fullPath;
         matchedPaths[idx] = fullPath;
         printFileChange(path, fullPath);
     }
@@ -463,4 +492,243 @@ void keywordPWD(const std::set<fs::path>& directories)
         resetColor();
     }
     printPause();
+}
+
+void keywordSeries(Filenames& filePaths)
+{
+// Dots code start (edited):
+    Filenames matchedPaths{filePaths};
+    fs::path new_path{};
+    std::string old_filename{};
+    std::string new_filename{};
+    bool dotAtStart{};
+    std::cout << '\n';
+    // Get matches and print
+    for (auto& pair: filePaths)
+    {
+        new_path = pair.second;
+        dotAtStart = false;
+        
+        // Remove suffix, and extension from path if not folder
+        removeDotEnds(new_path, dotAtStart);
+
+        // Check for matches
+        if ( new_path.filename().string().find(".") == std::string::npos )
+            continue;
+
+        // Remove dots from path filename
+        new_path.replace_filename(strReplaceAll(new_path.filename().string(), ".", " "));
+
+        // Restore extension or suffix to path
+        restoreDotEnds(new_path, pair.second, dotAtStart);
+
+        // For code readability
+        old_filename = pair.second.filename().string();
+        new_filename = new_path.filename().string();
+
+        // Check for naming conflict
+        if (fs::exists(new_path) || !checkMapItemUnique(matchedPaths, new_path))
+            {
+                setColor(Color::red);
+                std::cout << "Cannot rename \"" << old_filename << "\" (Filename \"" << new_filename << "\" already exists.)\n"; 
+                resetColor();
+                continue;
+            }
+
+        matchedPaths[pair.first] = new_path;
+    }
+//End of dots code
+// Start cap code (edited)
+    for (auto& pair: matchedPaths)
+    {
+        fs::path path = pair.second;
+        std::string newFilename = path.filename().string();
+
+        capitalize(newFilename);
+
+        // Check if a match
+        if(path.filename() != newFilename)
+        {
+            fs::path fullPath{path.parent_path() /= newFilename};
+            matchedPaths[pair.first] = fullPath;
+        }
+    }
+// Begin between code (edited and regex)
+    std::regex pattern{"[Ss][0-9][0-9][Ee][0-9][0-9]"};
+    std::smatch sm;
+    std::string lpat{};
+    std::string rpat{"#end"};
+    std::string replacement{};
+    fs::path fullPath{};
+    
+    // Get matched filenames
+    Filenames renamed_temp{};      // To check for naming conflicts
+    for (auto pair = matchedPaths.cbegin(); pair != matchedPaths.cend(); ++pair)
+    {
+        fs::path path{pair->second};
+        int16_t idx{pair->first};
+        new_filename = path.filename().string();
+        std::regex_search(new_filename, sm, pattern);
+        if (sm[0] != "")
+        {
+        lpat = sm[0];
+
+        // make s01e01 lowercase //test maybe a better way to do this? transform?
+        new_filename.replace(sm.position(0), 1, "s");
+        new_filename.replace(sm.position(0) + 3, 1, "e");
+        }
+
+        // Add resolution size to end of filename (if found)
+        fs::path newPath{new_filename};
+        if (new_filename.find("360p") != std::string::npos)
+            replacement = " [360p]";
+        else if (new_filename.find("480p") != std::string::npos)
+            replacement = " [480p]";
+        else if (new_filename.find("720p") != std::string::npos)
+            replacement = " [720p]";
+        else if (new_filename.find("1080p") != std::string::npos)
+            replacement = " [1080p]";
+
+        path.replace_filename(newPath);
+        matchedPaths[idx].replace_filename(newPath);
+
+// ============================
+        fullPath = getBetweenFilename(path, lpat, rpat, replacement);
+        if (fullPath == "")
+            continue;  // Skip if no match
+
+        // Make sure new filename is different
+        if (fullPath == pair->second)
+            continue;
+        // Make sure multiple files are not named the same name:
+        if (fs::exists(fullPath) || !checkMapItemUnique(renamed_temp, fullPath))
+        {
+            setColor(Color::red);
+            std::cout << "Cannot rename " << path.filename() << " (Filename " << fullPath.filename() << " already exists.)\n"; 
+            resetColor();
+            matchedPaths.erase(pair);
+            continue;
+        }
+
+        renamed_temp[idx] = fullPath;
+        matchedPaths[idx] = fullPath;
+    }
+// End between code
+    // Print
+    for (auto pair = matchedPaths.cbegin(); pair != matchedPaths.cend(); ++pair)
+    {
+        int16_t idx{pair->first};
+        if (filePaths[idx] == matchedPaths[idx])
+        {
+            matchedPaths.erase(pair);
+            setColor(Color::red);
+            std::cout << filePaths[idx].filename() << " is already named properly.\n"; 
+            resetColor();
+            continue;
+        }
+        else
+            printFileChange(filePaths[idx], matchedPaths[idx]);
+    }
+
+    if (!matchedPaths.size())
+    {
+        setColor(Color::red);
+        std::cout << "\nNo files to rename.\n";
+        resetColor();
+        printPause();
+        return;
+    }
+
+    // Print number of matches then ask to quit or continue
+    if (checkIfQuit(matchedPaths.size()) )
+        return;
+    // Rename files and update menu
+    renameAndMenuUpdate(matchedPaths, filePaths);
+}
+
+
+void keywordPrintToFile(Filenames& filePaths, bool& showNums, std::set<fs::path> directories)
+{
+    std::cout << "Enter separator for filenames (\\n default):\n> "; 
+    std::string separator{};
+    std::getline(std::cin, separator);
+    if (separator == "")
+        separator = "\n";
+
+    printToFile(filePaths, directories, separator);
+}
+
+
+void keywordRenameSubs(Filenames& filePaths)
+{
+    std::cout << "Enter the name of directory containing subtitles:\n> "; 
+    std::string query{};
+    std::getline(std::cin, query);
+    if (!fs::exists(query))
+    {
+        setColor(Color::red);
+        std::cout << "\nDirectory doesn't exist.\n";
+        resetColor();
+        printPause();
+        return;
+    }
+    // Get filenames in subtitle directory
+    std::set<fs::path> directories{fs::canonical(query)};
+    Filenames subtitlePaths{getFilenames(directories)};
+
+    // Exit if no files in directory
+    if (subtitlePaths.size() == 0)
+    {
+        std::cout << "Directory is empty.\n";
+        printPause();
+        return;
+    }
+    // Change filenames before rename
+    Filenames newSubPaths{ replaceSubtitleFilenames(filePaths, subtitlePaths) };
+
+    // Print filenames using size of smallest file list
+    size_t size{ std::min(newSubPaths.size(), filePaths.size() )};
+    size_t size_copy{size};
+    for (size_t idx{}; idx < size_copy; ++idx )
+    {
+        // remove filenames that were unchanged
+        if (subtitlePaths[idx] == newSubPaths[idx])
+        {
+            subtitlePaths.erase(idx);
+            newSubPaths.erase(idx);
+            --size;
+            continue;
+        }
+
+        printFileChange(subtitlePaths[idx], newSubPaths[idx]);
+    }
+    
+    // Check if there are any filenames to change
+    if (size <= 0)
+    {
+        setColor(Color::red);
+        std::cout << "\nNo filenames to change.\n";
+        resetColor();
+        printPause();
+        return;
+    }
+
+    // Print number of matches then ask to quit or continue
+    if (checkIfQuit(size))
+        return;
+
+    // Rename files and update menu
+    renameAndMenuUpdate(newSubPaths, subtitlePaths);
+
+}
+
+void keywordRemoveDirectories(Filenames& filePaths, bool remove)
+{
+    for (auto pair = filePaths.cbegin(); pair != filePaths.cend(); )
+    {
+        if ( fs::is_directory(pair->second) == remove)
+            filePaths.erase(pair++);
+        else
+            ++pair;
+    }
 }

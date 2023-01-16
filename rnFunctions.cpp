@@ -2,7 +2,9 @@
 #include <algorithm>  // For transform
 #include <iostream>
 #include <filesystem>
+#include <fstream>
 #include <map>
+#include <regex>
 #include <set>
 #include <string>
 #include <vector>
@@ -62,6 +64,46 @@ void printFileChange(const fs::path& oldPath, const fs::path& newPath)
     resetColor();
 }
 
+// Used with checkPatternWithRegex and convertPatternWithRegex
+// Makes entire string pattern regex literal (except ? which is any digit)
+std::string makeRegex(const std::string& filename, const std::string& pattern)
+{
+    std::string newPattern{};
+    std::string character{};
+    for (const char& c : pattern)
+    {
+        character = c;
+        if (c == '\\' || c == '/' || c == '^' || c == ']')
+            newPattern += ("[\\" + character + "]");
+        else if (c == '?')
+            newPattern += ("[0-9]");
+        else
+            newPattern += ("[" + character + "]");
+    }
+    return newPattern;
+}
+
+// bool check for pattern, converting ? into any number
+bool checkPatternWithRegex(const std::string& filename, const std::string& pattern)
+{
+    std::regex patternRegEx{ makeRegex(filename, pattern) };
+    std::smatch sm;
+    std::regex_search(filename, sm, patternRegEx);
+    if (sm[0] == "")
+        return false;
+    return true;
+}
+
+// Convert pattern, converting ? into number
+std::string convertPatternWithRegex(const std::string& filename, const std::string& pattern)
+{
+    std::regex patternRegEx{ makeRegex(filename, pattern) };
+    std::smatch sm;
+    std::regex_search(filename, sm, patternRegEx);
+    if (sm[0] == "")
+        return pattern;
+    return sm[0];
+}
 
 
 bool checkForMatches(const Filenames& matchedPaths)
@@ -177,7 +219,7 @@ fs::path renameFile(const fs::path& file, const std::string& pat,
 Filenames getFilenames(const std::set<fs::path>& dirs)
 {
     Filenames filePaths{};
-    int16_t idx{};
+    int32_t idx{};
     for (auto& dir: dirs)
     {
         for ( const auto& path: fs::directory_iterator(dir) )
@@ -228,32 +270,36 @@ fs::path getBetweenFilename(const fs::path& path,
 {
     std::string filename {path.filename().string()};
 
+    // Convert any ? into numerical digit
+    std::string LPattern{ convertPatternWithRegex(filename, lpat) };
+    std::string RPattern{ convertPatternWithRegex(filename, rpat) };
+
     // Get index of patterns
-    std::size_t leftIndex{lowercase(filename).find(lowercase(lpat))};
-    std::size_t rightIndex{lowercase(filename).rfind(lowercase(rpat))};
+    std::size_t leftIndex{lowercase(filename).find(lowercase(LPattern))};
+    std::size_t rightIndex{lowercase(filename).rfind(lowercase(RPattern))};
 
     // Check if matched
     bool lmatch{leftIndex != std::string::npos};
     bool rmatch{rightIndex != std::string::npos};
-    if (!(lpat == "#begin" && rmatch) &&
-        !(lmatch && (rpat == "#end")) &&
+    if (!(LPattern == "#begin" && rmatch) &&
+        !( lmatch && ((RPattern == "#end") || (RPattern == "#ext")) ) &&
         !(lmatch && rmatch) )
         return ""; 
 
     // Adjust for pattern keywords
-    if (lpat == "#begin")
+    if (LPattern == "#begin")
         leftIndex = 0;
-    if (rpat == "#end")
+    if (RPattern == "#end" || RPattern == "#ext" )
         rightIndex = path.stem().string().length();
 
     // Switch the pattern indexes if rightmost one is entered first
     if ( leftIndex > rightIndex )
     {
         std::swap(leftIndex, rightIndex);
-        leftIndex += rpat.length();
+        leftIndex += RPattern.length();
     }
-    else if (lpat != "#begin")
-        leftIndex += lpat.length();
+    else if (LPattern != "#begin")
+        leftIndex += LPattern.length();
 
 
     // Edit filename string
@@ -283,8 +329,8 @@ std::vector<std::string> splitString(const std::string& str,
 {
     std::vector<std::string> splitLines{};
     std::string s{};
-    int16_t idx{};
-    int16_t prev{};
+    int32_t idx{};
+    int32_t prev{};
     
     while( ( idx = str.find(delimiter, prev) ) != std::string::npos )
     {
@@ -324,3 +370,54 @@ void capitalize(std::string& s)
 }
 
 
+void printToFile(Filenames& filePaths, std::set<fs::path> directories, 
+                 std::string separator)
+{
+    std::ofstream newFile;
+    newFile.open("RenameFileList.txt");
+    if (!newFile.is_open())
+    {
+        setColor(Color::red);
+        std::cout << "Error opening file.\n";
+        resetColor();
+        printPause();
+        return;
+    }
+
+    // Write directory paths
+    newFile << "Directories:\n";
+    for (auto& path: directories)
+    {
+        newFile << path.generic_string() << '\n';
+    }
+
+    newFile << '\n';
+
+    // Write filenames
+    for (auto& pair: filePaths)
+    {
+        newFile << pair.second.filename().string() << separator;
+    }
+}
+
+
+
+Filenames replaceSubtitleFilenames(Filenames& filePaths, Filenames subtitlePaths)
+{
+    size_t sSize{ ( std::min(filePaths.size(), subtitlePaths.size()) )};
+    std::vector<fs::path> newSubPaths{};
+    fs::path newFilename{};
+
+    size_t idx{};
+    for (auto& pair : filePaths)
+    {
+        if (fs::is_directory(pair.second))
+            continue;
+        newFilename = pair.second.stem().string() + subtitlePaths[idx].extension().string();
+        subtitlePaths[idx].replace_filename(newFilename);
+        ++idx;
+        if (idx >= sSize)
+            break;
+    }
+    return subtitlePaths;
+}

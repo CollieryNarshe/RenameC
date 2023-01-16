@@ -20,6 +20,12 @@ std::string lowercase(std::string s);
 // Print: old filename ---> new filename
 void printFileChange(const fs::path& oldPath, const fs::path& newPath);
 
+// bool check for pattern, converting ? into any number
+bool checkPatternWithRegex(const std::string& filename, const std::string& pattern);
+
+// Convert pattern, converting ? into number in filename
+std::string convertPatternWithRegex(const std::string& filename, const std::string& pattern);
+
 // Checks if map is empty and prints message if it is
 bool checkForMatches(const Filenames& matchedPaths);
 
@@ -47,7 +53,7 @@ Filenames getFilenames(const std::set<fs::path>& dirs);
 void removeFileByName(Filenames& files, const fs::path path);
 
 // Print filenames for menu
-void printFilenames(const std::map<int16_t, fs::path>& paths, 
+void printFilenames(const Filenames& paths, 
                     const bool showNums=false);
 
 fs::path getBetweenFilename(const fs::path& path, 
@@ -69,5 +75,9 @@ void toLowercase(std::string& s);
 
 void capitalize(std::string& s);
 
+void printToFile(Filenames& filePaths, std::set<fs::path> directories, 
+                 std::string separator);
+
+Filenames replaceSubtitleFilenames(Filenames& filePaths, Filenames subtitlePaths);
 
 #endif
