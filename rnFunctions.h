@@ -24,7 +24,8 @@ void printFileChange(const fs::path& oldPath, const fs::path& newPath);
 bool checkPatternWithRegex(const std::string& filename, const std::string& pattern);
 
 // Convert pattern, converting ? into number in filename
-std::string convertPatternWithRegex(const std::string& filename, const std::string& pattern);
+std::string convertPatternWithRegex(std::string filename, std::string pattern,
+                                    bool lower = true);
 
 // Checks if map is empty and prints message if it is
 bool checkForMatches(const Filenames& matchedPaths);
@@ -56,9 +57,12 @@ void removeFileByName(Filenames& files, const fs::path path);
 void printFilenames(const Filenames& paths, 
                     const bool showNums=false);
 
+bool checkBetweenMatches(const fs::path& path, 
+                         std::string lpat, std::string rpat);
+
 fs::path getBetweenFilename(const fs::path& path, 
-                          const std::string& lpat, const std::string& rpat,
-                          const std::string& replacement);
+                          std::string lpat, std::string rpat,
+                          const std::string& replacement, bool plus);
 
 // Pause program with cin and printed message
 void printPause();
@@ -79,5 +83,10 @@ void printToFile(Filenames& filePaths, std::set<fs::path> directories,
                  std::string separator);
 
 Filenames replaceSubtitleFilenames(Filenames& filePaths, Filenames subtitlePaths);
+
+void defaultPrintFilenameWithColor(const fs::path& filePath, std::string pat);
+
+void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern1,
+                                std::string pattern2);
 
 #endif

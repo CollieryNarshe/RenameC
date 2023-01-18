@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
         setColor(Color::pink);
         std::cout << "\nKeywords examples: !help, chdir, !dots, between, !rnsubs, !series, q\n";
         resetColor();
-        std::cout << "Enter keyword or pattern to change:\n> ";
+        std::cout << "Enter a keyword or pattern to search:\n> ";
         getline(std::cin, pattern);
 
         // Check for keywords:
@@ -49,11 +49,11 @@ int main(int argc, char* argv[])
         else if (pattern.rfind("chdir", 0) == 0)
             keywordChangeDir(pattern, directories, filePaths, filePaths_copy);
 
-        else if (pattern.rfind("adir", 0) == 0)
-            keywordChangeDir(pattern, directories, filePaths, filePaths_copy, true);
-
         else if (pattern == "adir+")
             keywordAddAllDirs(directories, filePaths, filePaths_copy);
+
+        else if (pattern.rfind("adir", 0) == 0)
+            keywordChangeDir(pattern, directories, filePaths, filePaths_copy, true);
 
         else if (pattern.rfind("rmdir", 0) == 0)
             keywordRemoveDir(pattern, directories, filePaths, filePaths_copy);
@@ -74,6 +74,9 @@ int main(int argc, char* argv[])
 
         else if (pattern == "between")
             keywordBetween(filePaths);
+
+        else if (pattern == "between+")
+            keywordBetween(filePaths, true);
 
         else if (pattern == "!lower" || pattern == "!cap")
             keywordCapOrLower(filePaths, pattern);

@@ -34,7 +34,7 @@ void keywordRemoveFilename(const std::string& pattern,
 
 void keywordRemoveDots(Filenames& filePaths);
 
-void keywordBetween(Filenames& filePaths);
+void keywordBetween(Filenames& filePaths, bool plus=false);
 
 void keywordCapOrLower(Filenames& filePaths, std::string_view pattern);
 
