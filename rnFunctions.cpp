@@ -487,7 +487,6 @@ void defaultPrintFilenameWithColor(const fs::path& filePath, std::string pat)
 
     // Convert any ? into digit
     pat = convertPatternWithRegex(filePath.filename().string(), lowercase(pat));
-    std::cerr << pat << " TEST: pat after regex\n";
 
     const std::string filename{filePath.filename().string()};
     fs::path newFile{filePath};
