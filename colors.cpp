@@ -1,9 +1,10 @@
 #include <iostream>
 #include <windows.h>
+#include <cstdint>
 
 HANDLE H{GetStdHandle(STD_OUTPUT_HANDLE)};
 
-void setColor(int color)
+void setColor(std::int16_t color)
 {
     SetConsoleTextAttribute(H, color);
 }

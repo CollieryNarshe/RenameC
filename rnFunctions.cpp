@@ -210,27 +210,45 @@ bool renameErrorCheck(fs::path path, fs::path new_path)
 }
 
 
-
-fs::path renameFile(const fs::path& file, const std::string& pat, 
-                        const std::string& newPat)
+std::int16_t getIndex(const std::string& pattern)
 {
-    std::string filename{file.filename().string()};
-    fs::path newFile{file};
+    std::int16_t index{1000};
+
+    try
+    {
+        if (pattern.rfind("#index", 0) == 0)
+            index = stoi(pattern.substr(6));
+    }
+    catch(const std::exception& e)
+    {
+        setColor(Color::red);
+        std::cerr << "Error with index conversion: " << e.what() << '\n';
+        resetColor();
+    }
+    return index;
+}
+
+
+fs::path renameFile(fs::path filePath, const std::string& pat, 
+                    const std::string& newPat)
+{
+    std::string filename{filePath.filename().string()};
+    std::string filenameStem{filePath.stem().string()};
+    std::int16_t set_index{getIndex(pat)};
 
     // Rename a string of filename
     if (pat == "#begin")
-        newFile.replace_filename(newPat + filename);
+        filePath.replace_filename(newPat + filename);
     else if (pat == "#ext")
-        newFile.replace_filename(file.stem().string() + newPat);
+        filePath.replace_filename(filenameStem + newPat);
     else if (pat == "#end")
-    {
-        filename = file.stem().string();
-        newFile.replace_filename(filename + newPat + file.extension().string());
-    }
+        filePath.replace_filename(filenameStem + newPat + filePath.extension().string());
+    else if (pat.rfind("#index", 0) == 0)
+        filePath.replace_filename(filename.substr(0, set_index) + newPat + filename.substr(set_index));
     else
-        newFile.replace_filename(strReplaceAll(filename, pat, newPat));
+        filePath.replace_filename(strReplaceAll(filename, pat, newPat));
 
-    return newFile;
+    return filePath;
 }
 
 
@@ -299,12 +317,19 @@ bool checkBetweenMatches(const fs::path& path,
     // Check if matched
     bool lmatch{leftIndex != std::string::npos};
     bool rmatch{rightIndex != std::string::npos};
-    if (
-        (lmatch && rmatch) || 
-        (lpat == "#begin" && rmatch) ||
-        (lmatch && ((rpat == "#end") || (rpat == "#ext"))) ||
-        (lpat == "#begin" && ((rpat == "#end") || (rpat == "#ext")))
-       )
+
+    std::int16_t set_indexL{getIndex(lpat)};
+    std::int16_t set_indexR{getIndex(rpat)};
+    if (lpat.rfind("#index", 0) == 0 && set_indexL <= filename.length())
+        lmatch = true;
+    if (rpat.rfind("#index", 0) == 0 && set_indexR <= filename.length())
+        rmatch = true;
+    if (lpat == "#begin")
+        lmatch = true;
+    if (rpat == "#end" || rpat == "#ext")
+        rmatch = true;
+
+    if (lmatch && rmatch)
         return true; 
     return false;
 }
@@ -327,12 +352,17 @@ fs::path getBetweenFilename(const fs::path& path,
     // Check if matched
     bool lmatch{leftIndex != std::string::npos};
     bool rmatch{rightIndex != std::string::npos};
-    if (
-        !(lpat == "#begin" && rmatch) &&
-        !(lmatch && ((rpat == "#end") || (rpat == "#ext"))) &&
-        !(lmatch && rmatch) &&
-        !(lpat == "#begin" && ((rpat == "#end") || (rpat == "#ext")))
-       )
+    std::int16_t set_indexL{getIndex(lpat)};
+    std::int16_t set_indexR{getIndex(rpat)};
+    if (lpat.rfind("#index", 0) == 0 && set_indexL <= filename.length())
+        lmatch = true;
+    if (rpat.rfind("#index", 0) == 0 && set_indexR <= filename.length())
+        rmatch = true;
+    if (lpat == "#begin")
+        lmatch = true;
+    if (rpat == "#end" || rpat == "#ext")
+        rmatch = true;
+    if (!(lmatch && rmatch))
         return "";
 
     // Adjust for pattern keywords
@@ -340,6 +370,10 @@ fs::path getBetweenFilename(const fs::path& path,
         leftIndex = 0;
     if (rpat == "#end" || rpat == "#ext" )
         rightIndex = path.stem().string().length();
+    if (lpat.rfind("#index", 0) == 0)
+        leftIndex = getIndex(lpat);
+    if (rpat.rfind("#index", 0) == 0)
+        rightIndex = getIndex(rpat);
 
     // Switch the pattern indexes if rightmost one is entered first
     // (plus) check to include patterns to replace
@@ -351,10 +385,9 @@ fs::path getBetweenFilename(const fs::path& path,
         else
             leftIndex += rpat.length();
     }
-    // else if (lpat != "#begin")
     else if (plus)
         rightIndex += rpat.length();
-    else if (lpat != "#begin")
+    else if (lpat != "#begin" && (rpat.rfind("#index", 0) != 0))
         leftIndex += lpat.length();
 
 
@@ -490,24 +523,40 @@ void defaultPrintFilenameWithColor(const fs::path& filePath, std::string pat)
 
     const std::string filename{filePath.filename().string()};
     fs::path newFile{filePath};
+    std::int16_t set_index{getIndex(pat)};
 
-    // Rename a string of filename
     if (pat == "#begin")
     {
-        std::cout << filename;
+        setColor(Color::blue);
+        std::cout << "*";
+        resetColor();
+        std::cout << filename << '\n';
         return;
     }
     else if (pat == "#end")
     {
-        std::cout << filename;
+        std::cout << filePath.stem().string();
+        setColor(Color::blue);
+        std::cout << "*";
+        resetColor();
+        std::cout << filePath.extension().string() << '\n';
         return;
     }
     else if (pat == "#ext")
     {
-        std::cout << filePath.stem();
+        std::cout << filePath.stem().string();
         setColor(Color::blue);
-        std::cout << filePath.extension();
+        std::cout << filePath.extension().string() << '\n';
         resetColor();
+        return;
+    }
+    else if (pat.rfind("#index", 0) == 0)
+    {
+        std::cout << filename.substr(0, set_index);
+        setColor(Color::blue);
+        std::cout << "*";
+        resetColor();
+        std::cout << filename.substr(set_index) << '\n';
         return;
     }
 
@@ -521,7 +570,7 @@ void defaultPrintFilenameWithColor(const fs::path& filePath, std::string pat)
     {
         whiteLength = patPos - prevEnd;
         std::cout << filename.substr(prevEnd, whiteLength);
-        setColor(Color::blue);
+        setColor(18);
         std::cout << filename.substr(patPos, pat.length());
         resetColor();
         prevEnd = patPos + pat.length();
@@ -536,6 +585,8 @@ void defaultPrintFilenameWithColor(const fs::path& filePath, std::string pat)
 void adjustForPatternKeywords(const fs::path& filePath, const std::string& pattern, 
                               size_t& index, size_t& pLength)
 {
+    // std::int16_t set_index1{getIndex(pattern)};
+
     if (pattern == "#begin")
     {
         index = 0;
@@ -551,6 +602,11 @@ void adjustForPatternKeywords(const fs::path& filePath, const std::string& patte
         index = filePath.stem().string().length();
         pLength = filePath.extension().string().length();
     }
+    else if (pattern.rfind("#index", 0) == 0)
+    {
+        index = getIndex(pattern);
+        pLength = 0;
+    }
 }
 
 
@@ -565,7 +621,7 @@ void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern
     size_t index{lowercase(filename).find(lowercase(pattern1))};
     size_t pLength{pattern1.length()};
     adjustForPatternKeywords(filePath, pattern1, index, pLength);
-    size_t pat1End{index + pLength};
+    size_t patEnd{index + pLength};
 
     // If pattern1 not in filename:
     if (index == std::string::npos)
@@ -577,11 +633,15 @@ void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern
     // Print the filename
     std::cout << filename.substr(0, index);            //first part before pat
     setColor(Color::blue);
-    std::cout << filename.substr(index, pLength);      //pattern1
+    if (pLength == 0)
+        std::cout << "*";
+    else
+        std::cout << filename.substr(index, pLength);      //pattern1
     resetColor();
+
     if (pattern2 == "")
     {
-        std::cout << filename.substr(pat1End) << '\n'; //Rest of filename after pattern1
+        std::cout << filename.substr(patEnd) << '\n'; //Rest of filename after pattern1
         return;
     }
 
@@ -591,20 +651,24 @@ void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern
     pLength = pattern2.length();
     adjustForPatternKeywords(filePath, pattern2, index, pLength);
     size_t pat2End{index + pLength};
+    size_t midLength{index - patEnd};
 
 
     // If pattern2 not in filename:
     if (index == std::string::npos)
     {
-        std::cout << filename.substr(pat1End) << '\n';
+        std::cout << filename.substr(patEnd) << '\n';
         return;
     }
 
     // Print second part
     setColor(Color::red);
-    std::cout << filename.substr(pat1End, index - pLength);           //center of pat
+    std::cout << filename.substr(patEnd, midLength);           //center of pat
     setColor(Color::blue);
-    std::cout << filename.substr(index, pLength);           //pattern2
+    if (pLength == 0)
+        std::cout << "*";
+    else
+        std::cout << filename.substr(index, pLength);           //pattern2
     resetColor();
-    std::cout << filename.substr(index + pLength) << '\n';  //end of filename
+    std::cout << filename.substr(pat2End) << '\n';  //end of filename
 }

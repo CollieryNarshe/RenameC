@@ -40,9 +40,12 @@ void removeDotEnds(fs::path& file, bool& dotAtStart);
 void restoreDotEnds(fs::path& newFile, const fs::path& file, 
                     bool dotAtStart);
 
+// Used with #index keyword
+std::int16_t getIndex(const std::string& pattern);
+
 // Rename a file using given two patterns
-fs::path renameFile(const fs::path& file, const std::string& pat, 
-                        const std::string& newPat);
+fs::path renameFile(fs::path filePath, const std::string& pat, 
+                    const std::string& newPat);
 
 // Rename a file given full paths
 bool renameErrorCheck(fs::path path, fs::path new_path);

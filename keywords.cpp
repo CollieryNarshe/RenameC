@@ -75,12 +75,12 @@ bool checkMapItemUnique(const Filenames& filePaths, fs::path path)
 }
 
 
-
 void keywordDefaultReplace(std::string& pattern, 
                            Filenames& filePaths)
 {
     Filenames matchedPaths{};
     std::string filename{};
+    std::int16_t set_index{getIndex(pattern)}; // keyword #index
 
     //Check for matches
     if (pattern == "#begin" || pattern == "#end")
@@ -91,6 +91,9 @@ void keywordDefaultReplace(std::string& pattern,
         for (const auto& pair: filePaths)
         {
             if (pattern == "#ext" && pair.second.has_extension() && !fs::is_directory(pair.second))
+                matchedPaths[pair.first] = pair.second;
+
+            else if (pattern.rfind("#index", 0) == 0 && set_index <= pair.second.filename().string().length())
                 matchedPaths[pair.first] = pair.second;
 
             else
@@ -134,15 +137,20 @@ void keywordDefaultReplace(std::string& pattern,
     {
         temp_pattern = convertPatternWithRegex(pair->second.filename().string(), pattern);
         temp_filename = renameFile(pair->second, temp_pattern, replacement);
-        // Check for repeat names
-        if (fs::exists(temp_filename) || !checkMapItemUnique(matchedPaths, temp_filename))
-            {
-                setColor(Color::red);
-                std::cout << "Cannot rename " << filePaths[pair->first].filename() << " (Filename " << temp_filename.filename() << " already exists.)\n"; 
-                resetColor();
-                matchedPaths.erase(pair++);
-                continue;
-            }
+
+        // Check for repeat names, but not if case is different
+        if (
+            (fs::exists(temp_filename) || !checkMapItemUnique(matchedPaths, temp_filename)) &&
+            !(lowercase(temp_filename.filename().string()) == lowercase(pair->second.filename().string()) &&
+                temp_filename.filename() != pair->second.filename())
+           )
+        {
+            setColor(Color::red);
+            std::cout << "Cannot rename " << filePaths[pair->first].filename() << " (Filename " << temp_filename.filename() << " already exists.)\n"; 
+            resetColor();
+            matchedPaths.erase(pair++);
+            continue;
+        }
 
         matchedPaths[pair->first] = temp_filename;
         // Print filename and changes
@@ -407,6 +415,15 @@ void keywordBetween(Filenames& filePaths, bool plus)
     getline(std::cin, lpat);
     std::cout << "Enter right pattern: ";
     getline(std::cin, rpat);
+
+    // Check if index number can be converted
+    std::int16_t lIndexCheck{getIndex(lpat)};
+    std::int16_t rIndexCheck{getIndex(rpat)};
+    if (lIndexCheck == 1000 || rIndexCheck == 1000)
+    {
+        printPause();
+        return;
+    }
 
     int32_t matchNum{};
     for (auto& pair : filePaths)
