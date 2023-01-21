@@ -25,7 +25,7 @@ bool checkPatternWithRegex(const std::string& filename, const std::string& patte
 
 // Convert pattern, converting ? into number in filename
 std::string convertPatternWithRegex(std::string filename, std::string pattern,
-                                    bool lower = true);
+                                    bool lower = true, bool right = false);
 
 // Checks if map is empty and prints message if it is
 bool checkForMatches(const Filenames& matchedPaths);

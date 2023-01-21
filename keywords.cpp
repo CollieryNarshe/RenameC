@@ -18,7 +18,7 @@ void keywordHelpMenu()
 
     std::cout << 
         // "\n========================================================="
-        "\nPattern matches:     #begin, #end, #ext, ? (a digit)"
+        "\nPattern matches:     #begin, #end, #ext, #index _, ? (a digit)"
 
         "\n\nDirectory keywords:"
         "\nchdir, adir, rmdir:  Change, add, or remove a directory."
@@ -122,8 +122,8 @@ void keywordDefaultReplace(std::string& pattern,
             defaultPrintFilenameWithColor(pair.second, pattern);
         }
     }
-    // Get second input (replacement pattern)
-    std::cout << "Enter replacement pattern or q to quit: "; 
+    // Get second input for replacement
+    std::cout << "Enter replacement pattern (or q to quit): "; 
     std::string replacement{};
     std::getline(std::cin, replacement);
     std::cout << '\n';
@@ -198,9 +198,9 @@ void keywordAddAllDirs(std::set<fs::path>& directories,
 
     // Chance to quit
     std::string query{};
-    std::cout << "Do you wish to add these directories? q to quit.";
+    std::cout << "Press ENTER to add these directories? (q to quit.)";
     getline(std::cin, query);
-    if (query == "q")
+    if (query != "")
         return;
 
     // Add directories and reset menu files
@@ -228,7 +228,7 @@ void keywordRemoveDir(std::string pattern, std::set<fs::path>& directories,
         }
         resetColor();
 
-        std::cout << "Enter the directory path you wish to remove or q to quit:\n> ";
+        std::cout << "Enter the directory path you wish to remove (or q to quit):\n> ";
         getline(std::cin, query);
 
         if (query == "q" || query == "")
@@ -266,7 +266,7 @@ void keywordChangeDir(const std::string& pattern, std::set<fs::path>& directorie
         newDir = pattern_end;
     else
     {
-    std::cout << "Enter new directory or q to quit:\n> ";
+    std::cout << "Enter new directory (or q to quit):\n> ";
     getline(std::cin, newDir);
     }
 
@@ -279,6 +279,7 @@ void keywordChangeDir(const std::string& pattern, std::set<fs::path>& directorie
         std::cout << "\nIncorrect directory path.\n";
         resetColor();
         printPause();
+        return;
     }
 
     setColor(Color::green);
@@ -289,10 +290,11 @@ void keywordChangeDir(const std::string& pattern, std::set<fs::path>& directorie
         std::cout << "\nDirectory added.\n";
     resetColor();
 
-    directories.insert(fs::canonical(newDir));
+    fs::path newDirPath{fs::canonical(newDir)};
+    std::filesystem::current_path(newDirPath);
+    directories.insert(newDirPath);
     filePaths = getFilenames(directories);
     filePaths_copy = filePaths;
-
 }
 
 
@@ -419,11 +421,17 @@ void keywordBetween(Filenames& filePaths, bool plus)
     // Check if index number can be converted
     std::int16_t lIndexCheck{getIndex(lpat)};
     std::int16_t rIndexCheck{getIndex(rpat)};
-    if (lIndexCheck == 1000 || rIndexCheck == 1000)
+    if ((lpat.rfind("#index", 0) == 0 && (lIndexCheck == 1000)) || 
+         rpat.rfind("#index", 0) == 0 && (rIndexCheck == 1000))
     {
         printPause();
         return;
     }
+
+    if (lpat == "")
+        lpat = "#begin";
+    if (rpat == "")
+        rpat = "#end";
 
     int32_t matchNum{};
     for (auto& pair : filePaths)
@@ -439,14 +447,17 @@ void keywordBetween(Filenames& filePaths, bool plus)
     if (!matchNum)
     {
         setColor(Color::red);
-        std::cout << "\nNo filenames contain these patterns.\n";
+        std::cout << "\nError 1: No filenames contain these patterns.\n";
         resetColor();
         printPause();
         return;
     }
 
-    std::cout << "Enter replacement pattern: ";
+    std::cout << "Enter replacement pattern (or q to quit): ";
     getline(std::cin, replacement);
+
+    if (replacement == "q")
+        return;
     
     // Get matched filenames
     Filenames matchedPaths{};
@@ -613,11 +624,11 @@ void keywordSeries(Filenames& filePaths)
         std::regex_search(new_filename, sm, pattern);
         if (sm[0] != "")
         {
-        lpat = sm[0];
+            lpat = sm[0];
 
-        // make s01e01 lowercase //test maybe a better way to do this? transform?
-        new_filename.replace(sm.position(0), 1, "s");
-        new_filename.replace(sm.position(0) + 3, 1, "e");
+            // make s01e01 lowercase //test maybe a better way to do this? transform?
+            new_filename.replace(sm.position(0), 1, "s");
+            new_filename.replace(sm.position(0) + 3, 1, "e");
         }
 
         // Add resolution size to end of filename (if found)

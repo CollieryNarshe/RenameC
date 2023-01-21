@@ -101,7 +101,7 @@ bool checkPatternWithRegex(const std::string& filename, const std::string& patte
 
 // Convert pattern, converting ? into number
 std::string convertPatternWithRegex(std::string filename, std::string pattern,
-                                    bool lower = true)
+                                    bool lower = true, bool right = false)
 {
     if (lower)
     {
@@ -110,10 +110,30 @@ std::string convertPatternWithRegex(std::string filename, std::string pattern,
     }
     std::regex patternRegEx{ makeRegex(filename, pattern) };
     std::smatch sm;
-    std::regex_search(filename, sm, patternRegEx);
-    if (sm[0] == "")
+
+    // Get first occurance of pattern
+    if (!right)
+    {
+        std::regex_search(filename, sm, patternRegEx);
+        if (sm[0] == "")
+            return pattern;
+        return sm[0];
+    }
+    
+    // Get last occurance of pattern (simulates rfind)
+    std::string match{};
+    while (std::regex_search (filename, sm, patternRegEx))
+    {
+        for (auto m : sm)
+        {
+            match = m.str();
+        }
+        filename = sm.suffix().str();
+    }
+    if (match == "")
         return pattern;
-    return sm[0];
+    return match;
+
 }
 
 
@@ -122,7 +142,7 @@ bool checkForMatches(const Filenames& matchedPaths)
     if ( !matchedPaths.size() )
     {
         setColor(Color::red);
-        std::cout << "\nNo filenames contain this pattern.\n";
+        std::cout << "\nError 2: No filenames contain this pattern.\n";
         resetColor();
         printPause();
         return false;
@@ -145,12 +165,12 @@ bool checkIfQuit(std::size_t index)
     setColor(Color::red);
     std::cout << "\n" << index << " filenames will be renamed.\n";
     resetColor();
-    std::cout << "Enter q to quit or ENTER to continue:\n> ";
+    std::cout << "Press ENTER to continue (or q to quit):\n> ";
     std::string query{};
     std::getline(std::cin, query);
     std::cout << '\n';
 
-    if (query == "q")
+    if (query != "")
         return true;
     return false;
 }
@@ -196,7 +216,6 @@ bool renameErrorCheck(fs::path path, fs::path new_path)
 {
     try
     {
-        // std::cout << path << "  |  " << new_path << '\n'; // test
         fs::rename(path, new_path);
         return true;
     }
@@ -308,8 +327,7 @@ bool checkBetweenMatches(const fs::path& path,
 
     // Convert any ? into numerical digit
     lpat = convertPatternWithRegex(filename, lpat);
-    rpat = convertPatternWithRegex(filename, rpat);
-    
+    rpat = convertPatternWithRegex(filename, rpat, true, true);
     // Get index of patterns
     std::size_t leftIndex{lowercase(filename).find(lowercase(lpat))};
     std::size_t rightIndex{lowercase(filename).rfind(lowercase(rpat))};
@@ -320,17 +338,42 @@ bool checkBetweenMatches(const fs::path& path,
 
     std::int16_t set_indexL{getIndex(lpat)};
     std::int16_t set_indexR{getIndex(rpat)};
-    if (lpat.rfind("#index", 0) == 0 && set_indexL <= filename.length())
+
+    bool lKeywordIndex{lpat.rfind("#index", 0) == 0};
+    bool rKeywordIndex{rpat.rfind("#index", 0) == 0};
+
+    // Check if #index is inside of the other pattern
+    std::size_t lLen{lpat.length()};
+    std::size_t rLen{rpat.length()};
+    if (!lKeywordIndex && rKeywordIndex && (lpat != "#end") && (lpat != "#ext") && (lpat != "#begin") &&
+         !((set_indexR < leftIndex) || (set_indexR > leftIndex + lLen)))
+        return false; 
+
+    if (lKeywordIndex && !rKeywordIndex && (rpat != "#end") && (rpat != "#ext") && (rpat != "#begin") &&
+         !((set_indexL < rightIndex) || (set_indexL > rightIndex + lLen)))
+        return false; 
+
+    // switch indexes if both set with #index but in wrong order:
+    if ((set_indexL > set_indexR) && (lKeywordIndex && rKeywordIndex))
+        std::swap(set_indexL, set_indexR);
+    if (lKeywordIndex && (set_indexL <= filename.length()))
         lmatch = true;
-    if (rpat.rfind("#index", 0) == 0 && set_indexR <= filename.length())
+    if (rKeywordIndex && set_indexR <= filename.length())
         rmatch = true;
-    if (lpat == "#begin")
+    if (lpat == "#begin" || lpat == "#end" || lpat == "#ext")
         lmatch = true;
-    if (rpat == "#end" || rpat == "#ext")
+    if (rpat == "#begin" || rpat == "#end" || rpat == "#ext")
         rmatch = true;
 
-    if (lmatch && rmatch)
+    // Make sure both patterns aren't #index with same number
+    if ( lKeywordIndex && rKeywordIndex && (lpat == rpat) )
+        lmatch = false;
+
+    // indexes not the same AND no keyword #index
+    if ((lmatch && rmatch) && ((leftIndex != rightIndex) && (!lKeywordIndex && !rKeywordIndex)))
         return true; 
+    else if ((lmatch && rmatch) && (lKeywordIndex || rKeywordIndex))
+        return true;
     return false;
 }
 
@@ -343,24 +386,26 @@ fs::path getBetweenFilename(const fs::path& path,
 
     // Convert any ? into numerical digit
     lpat = convertPatternWithRegex(filename, lpat);
-    rpat = convertPatternWithRegex(filename, rpat);
+    rpat = convertPatternWithRegex(filename, rpat, true, true);
 
     // Get index of patterns
     std::size_t leftIndex{lowercase(filename).find(lowercase(lpat))};
     std::size_t rightIndex{lowercase(filename).rfind(lowercase(rpat))};
 
     // Check if matched
+    bool lKeywordIndex{ lpat.rfind("#index", 0) == 0 };
+    bool rKeywordIndex{ rpat.rfind("#index", 0) == 0 };
     bool lmatch{leftIndex != std::string::npos};
     bool rmatch{rightIndex != std::string::npos};
     std::int16_t set_indexL{getIndex(lpat)};
     std::int16_t set_indexR{getIndex(rpat)};
-    if (lpat.rfind("#index", 0) == 0 && set_indexL <= filename.length())
+    if (lKeywordIndex && set_indexL <= filename.length())
         lmatch = true;
-    if (rpat.rfind("#index", 0) == 0 && set_indexR <= filename.length())
+    if (rKeywordIndex && set_indexR <= filename.length())
         rmatch = true;
-    if (lpat == "#begin")
+    if (lpat == "#begin" || lpat == "#end" || lpat == "#ext")
         lmatch = true;
-    if (rpat == "#end" || rpat == "#ext")
+    if (rpat == "#begin" || rpat == "#end" || rpat == "#ext")
         rmatch = true;
     if (!(lmatch && rmatch))
         return "";
@@ -368,28 +413,36 @@ fs::path getBetweenFilename(const fs::path& path,
     // Adjust for pattern keywords
     if (lpat == "#begin")
         leftIndex = 0;
+    if (rpat == "#begin")
+        rightIndex = 0;
     if (rpat == "#end" || rpat == "#ext" )
         rightIndex = path.stem().string().length();
-    if (lpat.rfind("#index", 0) == 0)
+    if (lpat == "#end" || lpat == "#ext" )
+        leftIndex = path.stem().string().length();
+    if (lKeywordIndex)
         leftIndex = getIndex(lpat);
-    if (rpat.rfind("#index", 0) == 0)
+    if (rKeywordIndex)
         rightIndex = getIndex(rpat);
 
     // Switch the pattern indexes if rightmost one is entered first
     // (plus) check to include patterns to replace
-    if ( leftIndex > rightIndex )
+    if ( (leftIndex > rightIndex))
     {
         std::swap(leftIndex, rightIndex);
-        if (plus)
-            rightIndex += lpat.length();
-        else
+        if (!lKeywordIndex && !rKeywordIndex)
+        {
+            if (plus && lpat != "#begin" && lpat != "#end" && lpat != "#ext")
+                rightIndex += lpat.length();
+            else if (rpat != "#begin" && rpat != "#end" && rpat != "#ext")
+                leftIndex += rpat.length();
+        }
+        else if (lKeywordIndex && !rKeywordIndex)
             leftIndex += rpat.length();
     }
-    else if (plus)
+    else if (plus && !rKeywordIndex)
         rightIndex += rpat.length();
-    else if (lpat != "#begin" && (rpat.rfind("#index", 0) != 0))
+    else if (lpat != "#begin" && lpat != "#end" && lpat != "#ext" && !lKeywordIndex)
         leftIndex += lpat.length();
-
 
     // Edit filename string
     filename.erase(filename.begin() + leftIndex, filename.begin() + rightIndex);
@@ -570,7 +623,7 @@ void defaultPrintFilenameWithColor(const fs::path& filePath, std::string pat)
     {
         whiteLength = patPos - prevEnd;
         std::cout << filename.substr(prevEnd, whiteLength);
-        setColor(18);
+        setColor(Color::blue);
         std::cout << filename.substr(patPos, pat.length());
         resetColor();
         prevEnd = patPos + pat.length();
@@ -616,12 +669,25 @@ void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern
 {   
     // Convert any ? into digit
     pattern1 = convertPatternWithRegex(filePath.filename().string(), pattern1);
+    pattern2 = convertPatternWithRegex(filePath.filename().string(), pattern2, true, true);
 
     std::string filename{filePath.filename().string()};
     size_t index{lowercase(filename).find(lowercase(pattern1))};
+    size_t index2{lowercase(filename).rfind(lowercase(pattern2))};
     size_t pLength{pattern1.length()};
+    size_t pLength2{pattern2.length()};
     adjustForPatternKeywords(filePath, pattern1, index, pLength);
+    adjustForPatternKeywords(filePath, pattern2, index2, pLength2);
+    if (index > index2)
+    {
+        pattern1.swap(pattern2);
+        std::swap(index, index2);
+        std::swap(pLength, pLength2);
+    }
+
     size_t patEnd{index + pLength};
+    size_t pat2End{index2 + pLength2};
+    size_t midLength{index2 - patEnd};
 
     // If pattern1 not in filename:
     if (index == std::string::npos)
@@ -639,23 +705,8 @@ void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern
         std::cout << filename.substr(index, pLength);      //pattern1
     resetColor();
 
-    if (pattern2 == "")
-    {
-        std::cout << filename.substr(patEnd) << '\n'; //Rest of filename after pattern1
-        return;
-    }
-
-    // Second pattern
-    pattern2 = convertPatternWithRegex(filePath.filename().string(), pattern2);
-    index = lowercase(filename).find(lowercase(pattern2));
-    pLength = pattern2.length();
-    adjustForPatternKeywords(filePath, pattern2, index, pLength);
-    size_t pat2End{index + pLength};
-    size_t midLength{index - patEnd};
-
-
     // If pattern2 not in filename:
-    if (index == std::string::npos)
+    if (index2 == std::string::npos)
     {
         std::cout << filename.substr(patEnd) << '\n';
         return;
@@ -663,12 +714,12 @@ void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern
 
     // Print second part
     setColor(Color::red);
-    std::cout << filename.substr(patEnd, midLength);           //center of pat
+    std::cout << filename.substr(patEnd, midLength);    //center of pat
     setColor(Color::blue);
-    if (pLength == 0)
+    if (pLength2 == 0)
         std::cout << "*";
     else
-        std::cout << filename.substr(index, pLength);           //pattern2
+        std::cout << filename.substr(index2, pLength2); //pattern2
     resetColor();
-    std::cout << filename.substr(pat2End) << '\n';  //end of filename
+    std::cout << filename.substr(pat2End) << '\n';      //end of filename
 }
