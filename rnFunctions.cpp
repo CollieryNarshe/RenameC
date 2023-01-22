@@ -71,6 +71,62 @@ std::string strReplaceAll(std::string origin, const std::string& pat,
 }
 
 
+// Used with checkPatternWithRegex and convertPatternWithRegex and extractDigits
+// Makes entire string pattern regex literal (except ? which is any digit)
+std::string makeRegex(const std::string& pattern)
+{
+    std::string newPattern{};
+    std::string character{};
+    for (const char& c : pattern)
+    {
+        character = c;
+        if (c == '\\' || c == '/' || c == '^' || c == ']')
+            newPattern += ("[\\" + character + "]");
+        else if (c == '?')
+            newPattern += ("([0-9])");
+        else
+            newPattern += ("[" + character + "]");
+    }
+    return newPattern;
+}
+
+
+
+std::vector<std::string> extractDigits(const std::string& filename, const std::string& pattern)
+{
+    std::vector<std::string> digits{};
+    std::regex regexPat{makeRegex(pattern)};
+    std::smatch sm{};
+    std::regex_search(filename, sm, regexPat);
+
+    for (size_t x{1}; x < sm.size(); ++x )
+    {
+        digits.push_back(sm[x]);
+    }
+    return digits;
+}
+
+
+std::string replaceDigits(const std::vector<std::string>& digits, std::string pat)
+{
+    if ( pat.empty() )
+        return pat;
+
+    auto newDigit{digits.begin()};
+    std::size_t startPos{};
+    while( (startPos = pat.find("?", startPos) ) != std::string::npos )
+    {
+        if (newDigit == digits.end())
+            newDigit = digits.begin();
+
+        pat.replace(startPos, 1, *newDigit);
+        ++startPos;
+        ++newDigit;
+    }
+    return pat;
+}
+
+
 
 void printFileChange(const fs::path& oldPath, const fs::path& newPath)
 {
@@ -81,35 +137,20 @@ void printFileChange(const fs::path& oldPath, const fs::path& newPath)
     resetColor();
 }
 
-// Used with checkPatternWithRegex and convertPatternWithRegex
-// Makes entire string pattern regex literal (except ? which is any digit)
-std::string makeRegex(const std::string& filename, const std::string& pattern)
-{
-    std::string newPattern{};
-    std::string character{};
-    for (const char& c : pattern)
-    {
-        character = c;
-        if (c == '\\' || c == '/' || c == '^' || c == ']')
-            newPattern += ("[\\" + character + "]");
-        else if (c == '?')
-            newPattern += ("[0-9]");
-        else
-            newPattern += ("[" + character + "]");
-    }
-    return newPattern;
-}
+
 
 // bool check for pattern, converting ? into any number
 bool checkPatternWithRegex(const std::string& filename, const std::string& pattern)
 {
-    std::regex patternRegEx{ makeRegex(filename, pattern) };
+    std::regex patternRegEx{ makeRegex(pattern) };
     std::smatch sm;
     std::regex_search(filename, sm, patternRegEx);
     if (sm[0] == "")
         return false;
     return true;
 }
+
+
 
 // Convert pattern, converting ? into number
 std::string convertPatternWithRegex(std::string filename, std::string pattern,
@@ -120,7 +161,8 @@ std::string convertPatternWithRegex(std::string filename, std::string pattern,
         toLowercase(filename);
         toLowercase(pattern);
     }
-    std::regex patternRegEx{ makeRegex(filename, pattern) };
+    std::regex patternRegEx{ makeRegex(pattern) };
+
     std::smatch sm;
 
     // Get first occurance of pattern
@@ -134,11 +176,12 @@ std::string convertPatternWithRegex(std::string filename, std::string pattern,
     
     // Get last occurance of pattern (simulates rfind)
     std::string match{};
-    while (std::regex_search (filename, sm, patternRegEx))
+    while (std::regex_search(filename, sm, patternRegEx))
     {
         for (auto m : sm)
         {
-            match = m.str();
+            // match = m.str();
+            match = sm[0];
         }
         filename = sm.suffix().str();
     }
@@ -397,10 +440,23 @@ bool checkBetweenMatches(const fs::path& path,
 
 
 fs::path getBetweenFilename(const fs::path& path, 
-                          std::string lpat, std::string rpat,
-                          std::string replacement, bool plus)
+                            std::string lpat, std::string rpat,
+                            std::string replacement, bool plus)
 {
     std::string filename {path.filename().string()};
+
+    // extract digits into vector to use with ? in replacement pattern
+    std::vector<std::string> digits{};
+    std::vector<std::string> rdigits{};
+    bool lpatHasQ{lpat.find("?") != std::string::npos};
+    bool rpatHasQ{rpat.find("?") != std::string::npos};
+    bool replaceHasQ{replacement.find("?") != std::string::npos};
+    if ( (lpatHasQ || rpatHasQ) && replaceHasQ )
+    {
+        digits = extractDigits(lowercase(filename), lowercase(lpat));
+        rdigits = extractDigits(lowercase(filename), lowercase(rpat));
+        digits.insert(digits.end(), rdigits.begin(), rdigits.end());
+    }
 
     // Convert any ? into numerical digit
     lpat = convertPatternWithRegex(filename, lpat);
@@ -442,9 +498,12 @@ fs::path getBetweenFilename(const fs::path& path,
     if (rKeywordIndex)
         rightIndex = getIndex(rpat);
 
+    if (leftIndex == rightIndex)
+        return "";
+
     // Switch the pattern indexes if rightmost one is entered first
     // (plus) check to include patterns to replace
-    if ( (leftIndex > rightIndex))
+    if ( leftIndex > rightIndex)
     {
         std::swap(leftIndex, rightIndex);
         if (!lKeywordIndex && !rKeywordIndex)
@@ -467,6 +526,10 @@ fs::path getBetweenFilename(const fs::path& path,
         replacement = "";
     else if (replacement == "#ext")
         replacement = path.extension().string();
+
+    // Replace ? with digits in replacement pattern
+    if ( (lpatHasQ || rpatHasQ) && replaceHasQ )
+        replacement = replaceDigits(digits, replacement);
 
     // Edit filename string
     filename.erase(filename.begin() + leftIndex, filename.begin() + rightIndex);

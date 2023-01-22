@@ -21,6 +21,15 @@ void toLowercase(std::string& s);
 
 void capitalize(std::string& s);
 
+// make a regex string with ? converted to [0-9]
+std::string makeRegex(const std::string& pattern);
+
+// For ? inside replacement pattern, return all the digits in first pat to use
+std::vector<std::string> extractDigits(const std::string& filename, const std::string& pattern);
+
+// For ? inside replacement pattern, replace digits in replacement
+std::string replaceDigits(const std::vector<std::string>& digits, std::string pat);
+
 // Print: old filename ---> new filename
 void printFileChange(const fs::path& oldPath, const fs::path& newPath);
 

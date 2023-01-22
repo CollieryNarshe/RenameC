@@ -75,6 +75,44 @@ bool checkMapItemUnique(const Filenames& filePaths, fs::path path)
 }
 
 
+std::vector<std::string> extractDigits(const std::string& filename, const std::string& pattern)
+{
+    std::vector<std::string> digits{};
+    std::regex regexPat{makeRegex(pattern)};
+    std::smatch sm{};
+    std::regex_search(filename, sm, regexPat);
+
+    for (auto m : sm)
+
+    for (size_t x{1}; x < sm.size(); ++x )
+    {
+        digits.push_back(sm[x]);
+    }
+    return digits;
+
+}
+
+
+std::string replaceDigits(const std::vector<std::string>& digits, std::string pat)
+{
+    if ( pat.empty() )
+        return pat;
+
+    auto newDigit{digits.begin()};
+    std::size_t startPos{};
+    while( (startPos = pat.find("?", startPos) ) != std::string::npos )
+    {
+        if (newDigit == digits.end())
+            newDigit = digits.begin();
+
+        pat.replace(startPos, 1, *newDigit);
+        ++startPos;
+        ++newDigit;
+    }
+    return pat;
+}
+
+
 void keywordDefaultReplace(std::string& pattern, 
                            Filenames& filePaths)
 {
@@ -131,12 +169,24 @@ void keywordDefaultReplace(std::string& pattern,
         return;
 
     // Get new filenames
-    std::string temp_pattern{pattern};
+    std::string temp_pattern{};
+    std::string temp_replace{};
     fs::path temp_filename{};
+    std::vector<std::string> digits{};
+    bool patHasQ{pattern.find("?") != std::string::npos};
+    bool replaceHasQ{replacement.find("?") != std::string::npos};
+    
     for ( auto pair = matchedPaths.cbegin(); pair != matchedPaths.cend(); )
     {
+        // extract digits into vector to use with ? in replacement pattern
+        temp_replace = replacement;
+        if (patHasQ && replaceHasQ)
+        {
+            digits = extractDigits(lowercase(pair->second.filename().string()), lowercase(pattern));
+            temp_replace = replaceDigits(digits, temp_replace);
+        }
         temp_pattern = convertPatternWithRegex(pair->second.filename().string(), pattern);
-        temp_filename = renameFile(pair->second, temp_pattern, replacement);
+        temp_filename = renameFile(pair->second, temp_pattern, temp_replace);
 
         // Check for repeat names, but not if case is different
         if (
