@@ -30,9 +30,21 @@ std::string lowercase(std::string s)
     return s;
 }
 
-void lowerCase(std::string& s)
+void toLowercase(std::string& s)
 {
     transform(s.begin(), s.end(), s.begin(), ::tolower);
+}
+
+void capitalize(std::string& s)
+{
+    for (std::size_t idx{}; idx < s.length(); ++idx)
+    {
+        if ( (idx == 0) && (std::islower(s[idx])) )
+            s[0] = std::toupper(s[0]);
+
+        else if ( (s[idx - 1] == ' ') && (std::islower(s[idx])) )
+            s[idx] = std::toupper(s[idx]);
+    }
 }
 
 
@@ -65,7 +77,7 @@ void printFileChange(const fs::path& oldPath, const fs::path& newPath)
     setColor(Color::pink);
     std::cout << oldPath.filename().string();
     setColor(Color::green);
-    std::cout << "\n   ---->  " << newPath.filename().string() << '\n';
+    std::cout << "\n   ---->" << newPath.filename().string() << '\n';
     resetColor();
 }
 
@@ -105,8 +117,8 @@ std::string convertPatternWithRegex(std::string filename, std::string pattern,
 {
     if (lower)
     {
-        lowerCase(filename);
-        lowerCase(pattern);
+        toLowercase(filename);
+        toLowercase(pattern);
     }
     std::regex patternRegEx{ makeRegex(filename, pattern) };
     std::smatch sm;
@@ -249,11 +261,17 @@ std::int16_t getIndex(const std::string& pattern)
 
 
 fs::path renameFile(fs::path filePath, const std::string& pat, 
-                    const std::string& newPat)
+                    std::string newPat)
 {
     std::string filename{filePath.filename().string()};
     std::string filenameStem{filePath.stem().string()};
     std::int16_t set_index{getIndex(pat)};
+
+    // Replace NewPat keywords
+    if (newPat == "#begin" || newPat == "#end")
+        newPat = "";
+    else if (newPat == "#ext")
+        newPat = filePath.extension().string();
 
     // Rename a string of filename
     if (pat == "#begin")
@@ -380,7 +398,7 @@ bool checkBetweenMatches(const fs::path& path,
 
 fs::path getBetweenFilename(const fs::path& path, 
                           std::string lpat, std::string rpat,
-                          const std::string& replacement, bool plus)
+                          std::string replacement, bool plus)
 {
     std::string filename {path.filename().string()};
 
@@ -444,6 +462,12 @@ fs::path getBetweenFilename(const fs::path& path,
     else if (lpat != "#begin" && lpat != "#end" && lpat != "#ext" && !lKeywordIndex)
         leftIndex += lpat.length();
 
+    // Handle replacement keyword patterns
+    if (replacement == "#begin" || replacement == "#end")
+        replacement = "";
+    else if (replacement == "#ext")
+        replacement = path.extension().string();
+
     // Edit filename string
     filename.erase(filename.begin() + leftIndex, filename.begin() + rightIndex);
     filename.insert(leftIndex, replacement);
@@ -492,24 +516,6 @@ std::vector<std::string> splitString(const std::string& str,
     return splitLines;
 }
 
-
-void toLowercase(std::string& s)
-{
-    transform(s.begin(), s.end(), s.begin(), ::tolower);
-}
-
-
-void capitalize(std::string& s)
-{
-    for (std::size_t idx{}; idx < s.length(); ++idx)
-    {
-        if ( (idx == 0) && (std::islower(s[idx])) )
-            s[0] = std::toupper(s[0]);
-
-        else if ( (s[idx - 1] == ' ') && (std::islower(s[idx])) )
-            s[idx] = std::toupper(s[idx]);
-    }
-}
 
 
 void printToFile(Filenames& filePaths, std::set<fs::path> directories, 

@@ -65,7 +65,6 @@ int main(int argc, char* argv[])
             filePaths = getFilenames(directories);
             filePaths_copy = filePaths;}
 
-        // Remove files from list
         else if (pattern.rfind("rm", 0) == 0)
             keywordRemoveFilename(pattern, filePaths, filePaths_copy);
 
@@ -100,6 +99,5 @@ int main(int argc, char* argv[])
         else if (pattern != "")  // Pattern check for help menu (skip to filename menu)
             keywordDefaultReplace(pattern, filePaths);
     }
-
     return 0;
 }

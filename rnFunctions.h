@@ -17,6 +17,10 @@ std::string strReplaceAll(std::string origin, const std::string& pat,
 
 std::string lowercase(std::string s);
 
+void toLowercase(std::string& s);
+
+void capitalize(std::string& s);
+
 // Print: old filename ---> new filename
 void printFileChange(const fs::path& oldPath, const fs::path& newPath);
 
@@ -45,7 +49,7 @@ std::int16_t getIndex(const std::string& pattern);
 
 // Rename a file using given two patterns
 fs::path renameFile(fs::path filePath, const std::string& pat, 
-                    const std::string& newPat);
+                    std::string newPat);
 
 // Rename a file given full paths
 bool renameErrorCheck(fs::path path, fs::path new_path);
@@ -65,7 +69,7 @@ bool checkBetweenMatches(const fs::path& path,
 
 fs::path getBetweenFilename(const fs::path& path, 
                           std::string lpat, std::string rpat,
-                          const std::string& replacement, bool plus);
+                          std::string replacement, bool plus);
 
 // Pause program with cin and printed message
 void printPause();
@@ -77,10 +81,6 @@ std::string removeSpace(std::string s);
 std::vector<std::string> splitString(const std::string& str, 
                                      const std::string& delimiter, 
                                      bool removeSpaces = true);
-
-void toLowercase(std::string& s);
-
-void capitalize(std::string& s);
 
 void printToFile(Filenames& filePaths, std::set<fs::path> directories, 
                  std::string separator);

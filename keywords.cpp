@@ -719,11 +719,34 @@ void keywordPrintToFile(Filenames& filePaths, bool& showNums, std::set<fs::path>
 }
 
 
+
+// Used with keywordRenameSubs
+fs::path getFirstFolder()
+{
+    for (const auto& dir: fs::directory_iterator(".\\"))
+    {
+        if (dir.is_directory())
+            return dir;
+    }
+
+    fs::path empty{};
+    return empty;
+}
+
+
 void keywordRenameSubs(Filenames& filePaths)
 {
-    std::cout << "Enter the name of directory containing subtitles:\n> "; 
+    fs::path sub_directory{getFirstFolder()};
+
+    setColor(Color::green);
+    std::cout << "Default: " << sub_directory << '\n';
+    resetColor();
+    std::cout << "Enter path for directory containing subtitles (Blank for default):\n> "; 
     std::string query{};
     std::getline(std::cin, query);
+    if (query == "")
+        query = sub_directory.string();
+
     if (!fs::exists(query))
     {
         setColor(Color::red);
