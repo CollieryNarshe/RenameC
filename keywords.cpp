@@ -18,8 +18,11 @@ void keywordHelpMenu()
 
     std::cout << 
         // "\n========================================================="
-        "\nPattern matches:     #begin, #end, #ext, #index _, ? (a digit)"
-
+        "\nPattern matches:"
+        "\n#begin               The start of filename."
+        "\n#end                 The end of filename."
+        "\n#ext                 The entire file extension"
+        "\n?                    Any digit 1-9. Matched digits are saved to potentially use in replacement pattern."
         "\n\nDirectory keywords:"
         "\nchdir, adir, rmdir:  Change, add, or remove a directory."
         "\nadir+:               Add all directories from current path(s)."
@@ -74,43 +77,6 @@ bool checkMapItemUnique(const Filenames& filePaths, fs::path path)
     return true;
 }
 
-
-std::vector<std::string> extractDigits(const std::string& filename, const std::string& pattern)
-{
-    std::vector<std::string> digits{};
-    std::regex regexPat{makeRegex(pattern)};
-    std::smatch sm{};
-    std::regex_search(filename, sm, regexPat);
-
-    for (auto m : sm)
-
-    for (size_t x{1}; x < sm.size(); ++x )
-    {
-        digits.push_back(sm[x]);
-    }
-    return digits;
-
-}
-
-
-std::string replaceDigits(const std::vector<std::string>& digits, std::string pat)
-{
-    if ( pat.empty() )
-        return pat;
-
-    auto newDigit{digits.begin()};
-    std::size_t startPos{};
-    while( (startPos = pat.find("?", startPos) ) != std::string::npos )
-    {
-        if (newDigit == digits.end())
-            newDigit = digits.begin();
-
-        pat.replace(startPos, 1, *newDigit);
-        ++startPos;
-        ++newDigit;
-    }
-    return pat;
-}
 
 
 void keywordDefaultReplace(std::string& pattern, 
