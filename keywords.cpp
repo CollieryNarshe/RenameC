@@ -1,5 +1,6 @@
 #include "rnFunctions.h"
 #include "colors.h"
+#include "textCount.cpp"
 #include <algorithm>
 #include <iostream>
 #include <string>
@@ -9,7 +10,6 @@
 #include <regex>
 
 using Filenames = std::map<int16_t, fs::path>;
-
 
 
 void keywordHelpMenu()
@@ -42,6 +42,7 @@ void keywordHelpMenu()
 
         "\n\nOther keywords:"
         "\n!reload:             Reload filenames from directory and restore removed files."
+        "\n!wordcount:          Prints count of lines, words, and characters for all files in menu."
         "\n!print:              Creates a file with the list of file and folders currently in menu."
         "\nq, exit, '':         Quit.\n\n";
 
@@ -830,4 +831,17 @@ void keywordRemoveDirectories(Filenames& filePaths, bool remove)
         else
             ++pair;
     }
+}
+
+void keywordWordCount(Filenames& filePaths)
+{
+    std::vector<fs::path> vectorPaths{};
+    for (auto& p: filePaths)
+        vectorPaths.push_back(p.second);
+
+    TextCount wordCount(vectorPaths);
+    wordCount.printInfo();
+    // wordCount.printWords();
+    // wordCount.printWords(0, "if");
+    printPause();
 }

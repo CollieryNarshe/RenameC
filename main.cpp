@@ -86,6 +86,9 @@ int main(int argc, char* argv[])
         else if (pattern == "!print")
             keywordPrintToFile(filePaths, showNums, directories);
 
+        else if (pattern == "!wordcount")
+            keywordWordCount(filePaths);
+
         else if (pattern == "!rnsubs")
             keywordRenameSubs(filePaths);
 

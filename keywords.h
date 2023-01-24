@@ -48,4 +48,6 @@ void keywordRenameSubs(Filenames& filePaths);
 
 void keywordRemoveDirectories(Filenames& filePaths, bool remove = true);
 
+void keywordWordCount(Filenames& filePaths);
+
 #endif
