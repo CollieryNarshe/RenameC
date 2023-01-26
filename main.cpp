@@ -1,5 +1,6 @@
 #include "keywords.h"
 #include "colors.h"
+#include "history.h"
 #include "rnFunctions.h"
 #include <windows.h>
 #include <iostream>
@@ -12,10 +13,10 @@
 namespace fs = std::filesystem;
 using Filenames = std::map<int16_t, fs::path>;
 
-
 int main(int argc, char* argv[])
 {
     const fs::path programName{argv[0]};
+    HistoryData history{programName};
     std::string pattern{};
     std::set<fs::path> directories{fs::canonical(".\\")};
     Filenames filePaths{getFilenames(directories)};
@@ -35,13 +36,13 @@ int main(int argc, char* argv[])
 
         // Check for keywords:
         if (pattern == "")
-            { std::cout << '\n'; break; }
+            { std::cout << '\n'; history.saveToFile(); break; }
 
         else if (pattern == "!help" ) 
             { keywordHelpMenu(); getline(std::cin, pattern); }
 
         if (pattern == "q" || pattern == "exit") // New if statement for help menu
-            { std::cout << '\n'; break; }
+            { std::cout << '\n'; history.saveToFile(); break; }
 
         else if (pattern == "!index") 
             showNums = !showNums;
@@ -69,19 +70,19 @@ int main(int argc, char* argv[])
             keywordRemoveFilename(pattern, filePaths, filePaths_copy);
 
         else if (pattern == "!dots")
-            keywordRemoveDots(filePaths);
+            keywordRemoveDots(filePaths, history);
 
         else if (pattern == "between")
-            keywordBetween(filePaths);
+            keywordBetween(filePaths, history);
 
         else if (pattern == "between+")
-            keywordBetween(filePaths, true);
+            keywordBetween(filePaths, history, true);
 
         else if (pattern == "!lower" || pattern == "!cap")
-            keywordCapOrLower(filePaths, pattern);
+            keywordCapOrLower(filePaths, pattern, history);
 
         else if (pattern == "!series")
-            keywordSeries(filePaths);
+            keywordSeries(filePaths, history);
 
         else if (pattern == "!print")
             keywordPrintToFile(filePaths, showNums, directories);
@@ -90,7 +91,7 @@ int main(int argc, char* argv[])
             keywordWordCount(filePaths);
 
         else if (pattern == "!rnsubs")
-            keywordRenameSubs(filePaths);
+            keywordRenameSubs(filePaths, history);
 
         else if (pattern == "!rmdirs")
             keywordRemoveDirectories(filePaths);
@@ -98,9 +99,22 @@ int main(int argc, char* argv[])
         else if (pattern == "!rmfiles")
             keywordRemoveDirectories(filePaths, false);
 
+        else if (pattern == "!undo")
+            {undoRename(history, 0);
+            filePaths = getFilenames(directories);
+            filePaths_copy = filePaths;}
+
+        else if (pattern == "!history")
+            {keywordHistory(history);
+            filePaths = getFilenames(directories);
+            filePaths_copy = filePaths;}
+
+        else if (pattern == "!togglehistory")
+            keywordToggleHistory(history);
+        
         // Get second pattern:
         else if (pattern != "")  // Pattern check for help menu (skip to filename menu)
-            keywordDefaultReplace(pattern, filePaths);
+            keywordDefaultReplace(pattern, filePaths, history);
     }
     return 0;
 }

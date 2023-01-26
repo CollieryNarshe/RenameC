@@ -1,14 +1,15 @@
 #include "colors.h"
+#include "history.h"
 #include <algorithm>  // For transform
-#include <iostream>
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <map>
 #include <regex>
 #include <set>
 #include <string>
 #include <vector>
-#include <cstddef>
 
 namespace fs = std::filesystem;
 using Filenames = std::map<int16_t, fs::path>;
@@ -217,7 +218,7 @@ bool checkIfQuit(std::size_t index)
         printPause();
         return true;
     }
-    setColor(Color::red);
+    setColor(Color::blue);
     std::cout << "\n" << index << " filenames will be renamed.\n";
     resetColor();
     std::cout << "Press ENTER to continue (or q to quit):\n> ";
@@ -791,4 +792,32 @@ void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern
         std::cout << filename.substr(index2, pLength2); //pattern2
     resetColor();
     std::cout << filename.substr(pat2End) << '\n';      //end of filename
+}
+
+
+void undoRename(HistoryData& history, std::int16_t index)
+{
+    std::pair<Filenames, Filenames> oldNewFilenames{};
+    oldNewFilenames = history.getFilenames(index);
+    Filenames oldFiles{oldNewFilenames.first};
+    Filenames newFiles{oldNewFilenames.second};
+    
+    std::cout << '\n';
+    for (auto& pair : oldFiles)
+    {
+        printFileChange(newFiles[pair.first], pair.second);
+    }
+
+    // Chance to quit.
+    if ( checkIfQuit(oldFiles.size()) )
+        return;
+
+    // Rename files.
+    for (auto& pair: oldFiles)
+    {
+        renameErrorCheck(newFiles[pair.first], pair.second);
+    }
+
+    // Remove from history.
+    history.removeEntry(index);
 }

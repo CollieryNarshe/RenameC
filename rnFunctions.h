@@ -2,6 +2,7 @@
 #define RNFUNCTIONS_H
 
 #include <filesystem>
+#include "history.h"
 #include <map>
 #include <set>
 #include <string>
@@ -100,5 +101,7 @@ void defaultPrintFilenameWithColor(const fs::path& filePath, std::string pat);
 
 void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern1,
                                 std::string pattern2);
+
+void undoRename(HistoryData& history, std::int16_t index);
 
 #endif

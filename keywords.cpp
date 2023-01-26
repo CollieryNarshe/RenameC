@@ -1,5 +1,6 @@
 #include "rnFunctions.h"
 #include "colors.h"
+#include "history.h"
 #include "textCount.cpp"
 #include <algorithm>
 #include <iostream>
@@ -23,13 +24,13 @@ void keywordHelpMenu()
         "\n#end                 The end of filename."
         "\n#ext                 The entire file extension"
         "\n?                    Any digit 1-9. Matched digits are saved to potentially use in replacement pattern."
-        "\n\nDirectory keywords:"
-        "\nchdir, adir, rmdir:  Change, add, or remove a directory."
-        "\nadir+:               Add all directories from current path(s)."
-        "\n!pwd:                Print work directory."
-        "\n!rmdirs, !rmfiles:   Remove all folders or files from menu."
+        "\n\nMenu keywords:"
         "\n!index:              Show index numbers for filenames in menu."
         "\nrm #(,#):            Remove or restore the menu filename(s) at given index #(s)."
+        "\n!rmdirs, !rmfiles:   Remove all folders or files from menu."
+        "\nchdir, adir, rmdir:  Change, add, or remove a directory."
+        "\nadir+:               Add all directories from current path(s)."
+        "\n!pwd:                Print work directories."
 
         "\n\nRename keywords:"
         "\nbetween:             Remove text between (and not including) two patterns."
@@ -44,6 +45,8 @@ void keywordHelpMenu()
         "\n!reload:             Reload filenames from directory and restore removed files."
         "\n!wordcount:          Prints count of lines, words, and characters for all files in menu."
         "\n!print:              Creates a file with the list of file and folders currently in menu."
+        "\n!history:            Show list of history. Can undo past renames."
+        "\n!undo:               Undo the last rename."
         "\nq, exit, '':         Quit.\n\n";
 
     resetColor();
@@ -61,7 +64,9 @@ void renameAndMenuUpdate(Filenames& newPaths, Filenames& oldPaths)
 
         // Rename files. If successful update menu
         if ( renameErrorCheck(oldPaths[pair.first], newPath) )
+        {
             oldPaths[pair.first] = newPath;
+        }
     }
 }
 
@@ -80,8 +85,8 @@ bool checkMapItemUnique(const Filenames& filePaths, fs::path path)
 
 
 
-void keywordDefaultReplace(std::string& pattern, 
-                           Filenames& filePaths)
+void keywordDefaultReplace(std::string& pattern, Filenames& filePaths, 
+                           HistoryData& history)
 {
     Filenames matchedPaths{};
     std::string filename{};
@@ -122,13 +127,14 @@ void keywordDefaultReplace(std::string& pattern,
     // Print a preview with pattern highlighted
     else
     {
+        std::cout << '\n';
         for (auto& pair : matchedPaths)
         {
             defaultPrintFilenameWithColor(pair.second, pattern);
         }
     }
     // Get second input for replacement
-    std::cout << "Enter replacement pattern (or q to quit): "; 
+    std::cout << "\nEnter replacement pattern (or q to quit):\n> "; 
     std::string replacement{};
     std::getline(std::cin, replacement);
     std::cout << '\n';
@@ -178,6 +184,9 @@ void keywordDefaultReplace(std::string& pattern,
     // Chance to quit
     if ( checkIfQuit(matchedPaths.size()) )
         return;
+
+    if (history.saveHistory)
+        history.update(matchedPaths, filePaths);
 
     // Rename the actual files
     renameAndMenuUpdate(matchedPaths, filePaths);
@@ -364,7 +373,7 @@ void keywordRemoveFilename(const std::string& pattern,
 
 
 
-void keywordRemoveDots(Filenames& filePaths)
+void keywordRemoveDots(Filenames& filePaths, HistoryData& history)
 {
     Filenames matchedPaths{};
     fs::path new_path{};
@@ -417,13 +426,16 @@ void keywordRemoveDots(Filenames& filePaths)
     if ( checkIfQuit(matchedPaths.size()) )
         return;
 
+    if (history.saveHistory)
+        history.update(matchedPaths, filePaths);
+
     // Rename the actual files and update menu
     renameAndMenuUpdate(matchedPaths, filePaths);
 }
 
 
 
-void keywordBetween(Filenames& filePaths, bool plus)
+void keywordBetween(Filenames& filePaths, HistoryData& history, bool plus)
 {
     std::string lpat{};
     std::string rpat{};
@@ -450,6 +462,7 @@ void keywordBetween(Filenames& filePaths, bool plus)
     if (rpat == "")
         rpat = "#end";
 
+    std::cout << '\n';
     int32_t matchNum{};
     for (auto& pair : filePaths)
     {
@@ -470,12 +483,13 @@ void keywordBetween(Filenames& filePaths, bool plus)
         return;
     }
 
-    std::cout << "Enter replacement pattern (or q to quit): ";
+    std::cout << "\nEnter replacement pattern (or q to quit):\n> ";
     getline(std::cin, replacement);
 
     if (replacement == "q")
         return;
     
+    std::cout << '\n';
     // Get matched filenames
     Filenames matchedPaths{};
     for (auto& pair: filePaths)
@@ -509,13 +523,17 @@ void keywordBetween(Filenames& filePaths, bool plus)
     if (checkIfQuit(matchedPaths.size()) )
         return;
 
+    if (history.saveHistory)
+        history.update(matchedPaths, filePaths);
+
     //Rename and print
     renameAndMenuUpdate(matchedPaths, filePaths);
 }
 
 
 
-void keywordCapOrLower(Filenames& filePaths, std::string_view pattern)
+void keywordCapOrLower(Filenames& filePaths, std::string_view pattern,
+                       HistoryData& history)
 {
     Filenames matchedPaths{};
     fs::path path{};
@@ -549,9 +567,13 @@ void keywordCapOrLower(Filenames& filePaths, std::string_view pattern)
     if ( checkIfQuit(matchedPaths.size()) )
         return;
 
+    if (history.saveHistory)
+        history.update(matchedPaths, filePaths);
+
     // Rename files and update menu
     renameAndMenuUpdate(matchedPaths, filePaths);
 }
+
 
 void keywordPWD(const std::set<fs::path>& directories)
 {
@@ -564,7 +586,7 @@ void keywordPWD(const std::set<fs::path>& directories)
     printPause();
 }
 
-void keywordSeries(Filenames& filePaths)
+void keywordSeries(Filenames& filePaths, HistoryData& history)
 {
 // Dots code start (edited):
     Filenames matchedPaths{filePaths};
@@ -687,6 +709,7 @@ void keywordSeries(Filenames& filePaths)
     }
 // End between code
     // Print
+    std::cout << '\n';
     int16_t idx{};
     for (auto pair = matchedPaths.cbegin(); pair != matchedPaths.cend(); )
     {
@@ -703,7 +726,6 @@ void keywordSeries(Filenames& filePaths)
         {
             printFileChange(filePaths[idx], matchedPaths[idx]);
             ++pair;
-
         }
     }
 
@@ -719,6 +741,10 @@ void keywordSeries(Filenames& filePaths)
     // Print number of matches then ask to quit or continue
     if (checkIfQuit(matchedPaths.size()) )
         return;
+
+    if (history.saveHistory)
+        history.update(matchedPaths, filePaths);
+
     // Rename files and update menu
     renameAndMenuUpdate(matchedPaths, filePaths);
 }
@@ -751,7 +777,7 @@ fs::path getFirstFolder()
 }
 
 
-void keywordRenameSubs(Filenames& filePaths)
+void keywordRenameSubs(Filenames& filePaths, HistoryData& history)
 {
     fs::path sub_directory{getFirstFolder()};
 
@@ -787,6 +813,7 @@ void keywordRenameSubs(Filenames& filePaths)
     Filenames newSubPaths{ replaceSubtitleFilenames(filePaths, subtitlePaths) };
 
     // Print filenames using size of smallest file list
+    std::cout << '\n';
     size_t size{ std::min(newSubPaths.size(), filePaths.size() )};
     size_t size_copy{size};
     for (size_t idx{}; idx < size_copy; ++idx )
@@ -817,6 +844,9 @@ void keywordRenameSubs(Filenames& filePaths)
     if (checkIfQuit(size))
         return;
 
+    if (history.saveHistory)
+        history.update(newSubPaths, subtitlePaths);
+
     // Rename files and update menu
     renameAndMenuUpdate(newSubPaths, subtitlePaths);
 
@@ -843,5 +873,76 @@ void keywordWordCount(Filenames& filePaths)
     wordCount.printInfo();
     // wordCount.printWords();
     // wordCount.printWords(0, "if");
+    printPause();
+}
+
+
+void keywordHistory(HistoryData& history)
+{
+    if (history.historyData.empty())
+    {
+        setColor(Color::red);
+        std::cout << "\nThere is no history.\n";
+        resetColor();
+        printPause();
+        return;
+    }
+
+    history.print();
+    std::cout << "\nEnter an index number to undo change. (Green examples can revert, red don't currently exist.)\n" 
+                 "Type 'clear' to erase history.\n" 
+                 "Or press ENTER to return to menu:\n> ";
+    std::string query{};
+    std::getline(std::cin, query);
+
+    if (query == "q" || query == "")
+        return;
+    if (query == "clear")
+    {
+        history.clear();
+        return;
+    }
+
+    std::int32_t index{};
+    try
+    {
+        index = stoi(query);
+        if (index >= history.historyData.size() || index < 0)
+        {
+            const std::exception e{};
+            throw e;
+        }
+    }
+    catch(const std::exception& e)
+    {
+        setColor(Color::red);
+        std::cerr << "ERROR: Index number 0-" << history.historyData.size() - 1 << " required.\n" ;
+        resetColor();
+        printPause();
+        return;
+    }
+    fs::path renamedFile{history.historyData[index].begin()->second};
+    if (!fs::exists(renamedFile))
+    {
+        setColor(Color::red);
+        std::cout << "Cannot undo because " << renamedFile.filename() << " has since been changed.\n";
+        resetColor();
+        printPause();
+        return;
+    }
+    
+    undoRename(history, index);
+}
+
+void keywordToggleHistory(HistoryData& history)
+{
+    history.toggle();
+
+    setColor(Color::red);
+    if (history.saveHistory)
+        std::cout << "History turned on.";
+    else
+        std::cout << "History paused.";
+    resetColor();
     printPause();
 }
