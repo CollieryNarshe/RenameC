@@ -106,6 +106,45 @@ std::string strReplaceAll(std::string origin, const std::string& pat,
 }
 
 
+std::string convertSequenceNumber(std::string& pattern, std::int16_t indexNum, size_t numOfFiles)
+{
+    if (pattern.find("#^") == std::string::npos)
+        return pattern;
+
+    // Add zeros to start of index number
+    std::string indexNum_str{std::to_string(indexNum)};
+    std::string numOfFiles_str{std::to_string(numOfFiles)};
+    size_t numOfZeros{ numOfFiles_str.length() - indexNum_str.length()};
+
+    if (numOfZeros == 0 && indexNum_str.length() == 1)
+        indexNum_str = "0" + indexNum_str;
+    else
+    {
+        while (numOfZeros > 0)
+        {
+            indexNum_str = "0" + indexNum_str;
+            --numOfZeros;
+        }
+    }
+
+    // Replace pattern with number
+    std::string newPattern{};
+    std::string character{};
+    for (auto it = pattern.begin(); it != pattern.end(); ++it)
+    {
+        character = *it;
+        if (*it == '#' && *(it + 1) == '^')
+        {
+            newPattern += indexNum_str;
+            ++it;
+        }
+        else
+            newPattern += character;
+    }
+    return newPattern;
+}
+
+
 // Used with checkPatternWithRegex and convertPatternWithRegex and extractDigits
 // Makes entire string pattern regex literal (except ? which is any digit)
 std::string makeRegex(const std::string& pattern)
@@ -406,6 +445,19 @@ bool checkBetweenMatches(const fs::path& path,
     bool lmatch{leftIndex != std::string::npos};
     bool rmatch{rightIndex != std::string::npos};
 
+    if (lpat == "#begin"){
+        leftIndex = 0;
+        lmatch = true;}
+    if (lpat == "#end" || lpat == "#ext"){
+        leftIndex = path.stem().string().length();
+        lmatch = true;}
+    if (rpat == "#begin"){
+        rightIndex = 0;
+        rmatch = true;}
+    if (rpat == "#end" || rpat == "#ext"){
+        rightIndex = path.stem().string().length();
+        rmatch = true;}
+
     std::int16_t set_indexL{getIndex(lpat)};
     std::int16_t set_indexR{getIndex(rpat)};
 
@@ -430,10 +482,6 @@ bool checkBetweenMatches(const fs::path& path,
         lmatch = true;
     if (rKeywordIndex && set_indexR <= filename.length())
         rmatch = true;
-    if (lpat == "#begin" || lpat == "#end" || lpat == "#ext")
-        lmatch = true;
-    if (rpat == "#begin" || rpat == "#end" || rpat == "#ext")
-        rmatch = true;
 
     // Make sure both patterns aren't #index with same number
     if ( lKeywordIndex && rKeywordIndex && (lpat == rpat) )
@@ -453,6 +501,8 @@ fs::path getBetweenFilename(const fs::path& path,
                             std::string replacement, bool plus)
 {
     std::string filename {path.filename().string()};
+
+
 
     // extract digits into vector to use with ? in replacement pattern
     std::vector<std::string> digits{};
@@ -835,4 +885,33 @@ void undoRename(HistoryData& history, std::int16_t index, Filenames& filePaths)
 
     // Remove from history.
     history.removeEntry(index);
+}
+
+// Used with convertRangeDashes
+bool checkDash(const std::string& s)
+{
+    return (s.find('-') != std::string::npos);
+}
+
+void convertRangeDashes(std::vector<std::string>& indexes)
+{
+    std::vector<std::string> temp_indexes{};
+    std::vector<std::string> indexes_copy{indexes};
+    for (auto index : indexes_copy)
+    {
+        if (index.find('-') != std::string::npos)
+        {
+            temp_indexes = splitString(index, "-");
+
+            if (temp_indexes.size() >= 2)
+            {
+                auto smaller{std::min(stoi(temp_indexes[0]), stoi(temp_indexes[1]))};
+                auto larger{std::max(stoi(temp_indexes[0]), stoi(temp_indexes[1]))};
+                for (auto& idx{smaller}; idx <= larger; ++idx)
+                    indexes.push_back(std::to_string(idx));
+            }
+            temp_indexes.clear();
+        }
+    }
+    indexes.erase(std::remove_if(indexes.begin(), indexes.end(), checkDash), indexes.end() );
 }

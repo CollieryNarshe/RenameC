@@ -25,6 +25,7 @@ int main(int argc, char* argv[])
 
     while (true)
     {
+        filePaths_copy = getFilenames(directories, programName);
         printFilenames(filePaths, showNums);      // Print filenames
 
         setColor(Color::pink);

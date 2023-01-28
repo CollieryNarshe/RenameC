@@ -23,10 +23,13 @@ void keywordHelpMenu()
         "\n#end                 The end of filename."
         "\n#ext                 The entire file extension"
         "\n?                    Any digit 1-9. Matched digits are saved to potentially use in replacement pattern."
+        "\n#^                   A number sequence that can be added to replacement pattern."
+        "\n#index #             Any index of the filename."
+
         "\n\nMenu keywords:"
         "\n!index:              Show index numbers for filenames in menu."
-        "\nrm #(,#):            Remove or restore the menu filename(s) at given index #(s)."
-        "\nrm- #(,#):           Remove all filenames from menu, except any at given index #(s)."
+        "\nrm #(,#-#):          Remove or restore the menu filename(s) at given index #(s) or -dash range."
+        "\nrm- #(,#-#):         Remove all filenames from menu, except any at given index #(s) or -dash range."
         "\n!rmdirs, !rmfiles:   Remove all folders or files from menu."
         "\nchdir, adir, rmdir:  Change, add, or remove a directory."
         "\nadir+:               Add all directories from current path(s)."
@@ -143,27 +146,32 @@ void keywordDefaultReplace(std::string& pattern, Filenames& filePaths,
     bool patHasQ{pattern.find("?") != std::string::npos};
     bool replaceHasQ{replacement.find("?") != std::string::npos};
     
+    int16_t sequencePattern_idx{1};
     for ( auto pair = matchedPaths.cbegin(); pair != matchedPaths.cend(); )
     {
+        std::string originalFilename{pair->second.filename().string()};
+
         // extract digits into vector to use with ? in replacement pattern
         temp_replace = replacement;
         if (patHasQ && replaceHasQ)
         {
-            digits = extractDigits(lowercase(pair->second.filename().string()), lowercase(pattern));
+            digits = extractDigits( lowercase(originalFilename), lowercase(pattern) );
             temp_replace = replaceDigits(digits, temp_replace);
         }
-        temp_pattern = convertPatternWithRegex(pair->second.filename().string(), pattern);
+        temp_replace = convertSequenceNumber(temp_replace, sequencePattern_idx, matchedPaths.size());
+        temp_pattern = convertPatternWithRegex(originalFilename, pattern);
         temp_filename = renameFile(pair->second, temp_pattern, temp_replace);
 
         // Check for repeat names, but not if case is different
         if (
             (fs::exists(temp_filename) || !checkMapItemUnique(matchedPaths, temp_filename)) &&
-            !(lowercase(temp_filename.filename().string()) == lowercase(pair->second.filename().string()) &&
+            !(lowercase(temp_filename.filename().string()) == lowercase(originalFilename) &&
                 temp_filename.filename() != pair->second.filename())
            )
         {
             setColor(Color::red);
-            std::cout << "Cannot rename " << filePaths[pair->first].filename() << " (Filename " << temp_filename.filename() << " already exists.)\n"; 
+            std::cout << "Cannot rename " << originalFilename << 
+                " (Filename " << temp_filename.filename() << " already exists.)\n"; 
             resetColor();
             matchedPaths.erase(pair++);
             continue;
@@ -173,6 +181,7 @@ void keywordDefaultReplace(std::string& pattern, Filenames& filePaths,
         // Print filename and changes
         printFileChange(filePaths[pair->first], matchedPaths[pair->first]);
         ++pair;
+        ++sequencePattern_idx;
     }
 
     // Chance to quit
@@ -321,6 +330,7 @@ void keywordRemoveFilename(const std::string& pattern,
     {
         std::string nums{ pattern.substr(2) };
         std::vector<std::string> indexes{ splitString(nums, ",") };
+        convertRangeDashes(indexes);
 
         for (std::string index_string: indexes)
         {
@@ -356,6 +366,7 @@ void keywordRemoveFilename(const std::string& pattern,
         setColor(Color::red);
         std::cout << "\nIncorrect usage of rm #. Use keyword !help for more info.\n";
         resetColor();
+        printPause();
     }
 }
 
@@ -364,7 +375,6 @@ void keywordRemoveAllFilenames(const std::string& pattern,
                            Filenames& filePaths,
                            Filenames& filePaths_copy)
 {
-    // Filenames filePaths_temp{};
     try
     {
         std::string nums{ pattern.substr(3) };
@@ -372,6 +382,8 @@ void keywordRemoveAllFilenames(const std::string& pattern,
             {filePaths.clear(); return;}
         
         std::vector<std::string> index_strs{ splitString(nums, ",") };
+        convertRangeDashes(index_strs);
+
         std::vector<std::int16_t> indexes{};
         for (std::string index_string: index_strs)
         {
@@ -530,13 +542,16 @@ void keywordBetween(Filenames& filePaths, HistoryData& history, bool plus)
     
     std::cout << '\n';
     // Get matched filenames
+    int16_t sequencePattern_idx{1};
     Filenames matchedPaths{};
+    std::string temp_replacement{};
     for (auto& pair: filePaths)
     {
         fs::path path{pair.second};
         int16_t idx{pair.first};
 
-        fullPath = getBetweenFilename(path, lpat, rpat, replacement, plus);
+        temp_replacement = convertSequenceNumber(replacement, sequencePattern_idx, matchNum);
+        fullPath = getBetweenFilename(path, lpat, rpat, temp_replacement, plus);
 
         if (fullPath == "")
             continue;  // Skip if no match
@@ -556,6 +571,7 @@ void keywordBetween(Filenames& filePaths, HistoryData& history, bool plus)
 
         matchedPaths[idx] = fullPath;
         printFileChange(path, fullPath);
+        ++sequencePattern_idx;
     }
 
     // Print number of matches then ask to quit or continue

@@ -16,6 +16,13 @@ using Filenames = std::map<int16_t, fs::path>;
 std::string strReplaceAll(std::string origin, const std::string& pat, 
                           const std::string& newPat, const std::size_t start = 0);
 
+// Convert dash- range to numbers
+void convertRangeDashes(std::vector<std::string>& indexes);
+
+// converts #^ pattern into number
+std::string convertSequenceNumber(std::string& pattern, std::int16_t indexNum, 
+                                  size_t numOfFiles);
+
 std::string lowercase(std::string s);
 
 void toLowercase(std::string& s);
