@@ -22,6 +22,8 @@ void toLowercase(std::string& s);
 
 void capitalize(std::string& s);
 
+void renameAndMenuUpdate(Filenames& newPaths, Filenames& oldPaths);
+
 // make a regex string with ? converted to [0-9]
 std::string makeRegex(const std::string& pattern);
 
@@ -65,10 +67,7 @@ fs::path renameFile(fs::path filePath, const std::string& pat,
 bool renameErrorCheck(fs::path path, fs::path new_path);
 
 // Returns a <map> of filenames in a given directory
-Filenames getFilenames(const std::set<fs::path>& dirs);
-
-// Remove the program name from the menu
-void removeFileByName(Filenames& files, const fs::path path);
+Filenames getFilenames(const std::set<fs::path>& dirs, fs::path programName = "none");
 
 // Print filenames for menu
 void printFilenames(const Filenames& paths, 
@@ -102,6 +101,6 @@ void defaultPrintFilenameWithColor(const fs::path& filePath, std::string pat);
 void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern1,
                                 std::string pattern2);
 
-void undoRename(HistoryData& history, std::int16_t index);
+void undoRename(HistoryData& history, std::int16_t index, Filenames& filePaths);
 
 #endif

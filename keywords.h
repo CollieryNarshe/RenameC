@@ -12,7 +12,8 @@
 namespace fs = std::filesystem;
 using Filenames = std::map<int16_t, fs::path>;
 
-void renameAndMenuUpdate(Filenames& matchedPaths, Filenames& originalPaths);
+void reloadMenu(Filenames& filePaths, Filenames& filePaths_copy, 
+                std::set<fs::path> directories, const fs::path programName);
 
 void keywordDefaultReplace(std::string& pattern, Filenames& filePaths, 
                            HistoryData& history);
@@ -30,6 +31,10 @@ void keywordChangeDir(const std::string& pattern, std::set<fs::path>& directorie
                       const bool add = false);
 
 void keywordRemoveFilename(const std::string& pattern, 
+                           Filenames& filePaths,
+                           Filenames& filePaths_copy);
+
+void keywordRemoveAllFilenames(const std::string& pattern, 
                            Filenames& filePaths,
                            Filenames& filePaths_copy);
 
@@ -52,7 +57,7 @@ void keywordRemoveDirectories(Filenames& filePaths, bool remove = true);
 
 void keywordWordCount(Filenames& filePaths);
 
-void keywordHistory(HistoryData& history);
+void keywordHistory(HistoryData& history, Filenames& filePaths);
 
 void keywordToggleHistory(HistoryData& history);
 

@@ -50,6 +50,40 @@ void capitalize(std::string& s)
 
 
 
+bool renameErrorCheck(fs::path path, fs::path new_path)
+{
+    try
+    {
+        fs::rename(path, new_path);
+        return true;
+    }
+    catch(const std::exception& e)
+    {
+        setColor(Color::red);
+        std::cout << e.what() << '\n';
+        resetColor();
+        return false;
+    }
+}
+
+
+
+void renameAndMenuUpdate(Filenames& newPaths, Filenames& oldPaths)
+{
+    for (auto& pair: newPaths)
+    {
+        fs::path newPath = pair.second;
+
+        // Rename files. If successful update menu
+        if ( renameErrorCheck(oldPaths[pair.first], newPath) )
+        {
+            oldPaths[pair.first] = newPath;
+        }
+    }
+}
+
+
+
 std::string strReplaceAll(std::string origin, const std::string& pat, 
                           const std::string& newPat, const std::size_t start = 0)
 {
@@ -268,23 +302,6 @@ void restoreDotEnds(fs::path& newFile, const fs::path& file,
 
 
 
-bool renameErrorCheck(fs::path path, fs::path new_path)
-{
-    try
-    {
-        fs::rename(path, new_path);
-        return true;
-    }
-    catch(const std::exception& e)
-    {
-        setColor(Color::red);
-        std::cout << e.what() << '\n';
-        resetColor();
-        return false;
-    }
-}
-
-
 std::int16_t getIndex(const std::string& pattern)
 {
     std::int16_t index{1000};
@@ -334,14 +351,17 @@ fs::path renameFile(fs::path filePath, const std::string& pat,
 
 
 
-Filenames getFilenames(const std::set<fs::path>& dirs)
+Filenames getFilenames(const std::set<fs::path>& dirs, fs::path programName)
 {
     Filenames filePaths{};
     int32_t idx{};
     for (auto& dir: dirs)
     {
-        for ( const auto& path: fs::directory_iterator(dir) )
+        for ( fs::path path: fs::directory_iterator(dir) )
             {
+                if (path == programName)
+                    continue;
+
                 filePaths[idx] = path;
                 ++idx;
             }
@@ -349,18 +369,6 @@ Filenames getFilenames(const std::set<fs::path>& dirs)
     return filePaths;
 }
 
-
-void removeFileByName(Filenames& files, const fs::path path)
-{
-    for (auto& f : files)
-    {
-        if (f.second.filename() == path.filename())
-        {
-            files.erase(f.first);
-            return;
-        }
-    }
-}
 
 
 void printFilenames(const Filenames& paths, 
@@ -795,7 +803,7 @@ void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern
 }
 
 
-void undoRename(HistoryData& history, std::int16_t index)
+void undoRename(HistoryData& history, std::int16_t index, Filenames& filePaths)
 {
     std::pair<Filenames, Filenames> oldNewFilenames{};
     oldNewFilenames = history.getFilenames(index);
@@ -812,11 +820,18 @@ void undoRename(HistoryData& history, std::int16_t index)
     if ( checkIfQuit(oldFiles.size()) )
         return;
 
-    // Rename files.
-    for (auto& pair: oldFiles)
+    // update menu
+    for (auto pair : filePaths)
     {
-        renameErrorCheck(newFiles[pair.first], pair.second);
+        for (auto pair2 : newFiles)
+        {
+            if (pair.second == pair2.second)
+                filePaths[pair.first] = oldFiles[pair2.first];
+        }
     }
+
+    // Rename files.
+    renameAndMenuUpdate(oldFiles, newFiles);
 
     // Remove from history.
     history.removeEntry(index);

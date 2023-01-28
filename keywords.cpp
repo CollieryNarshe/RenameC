@@ -18,7 +18,6 @@ void keywordHelpMenu()
     setColor(Color::green);
 
     std::cout << 
-        // "\n========================================================="
         "\nPattern matches:"
         "\n#begin               The start of filename."
         "\n#end                 The end of filename."
@@ -27,6 +26,7 @@ void keywordHelpMenu()
         "\n\nMenu keywords:"
         "\n!index:              Show index numbers for filenames in menu."
         "\nrm #(,#):            Remove or restore the menu filename(s) at given index #(s)."
+        "\nrm- #(,#):           Remove all filenames from menu, except any at given index #(s)."
         "\n!rmdirs, !rmfiles:   Remove all folders or files from menu."
         "\nchdir, adir, rmdir:  Change, add, or remove a directory."
         "\nadir+:               Add all directories from current path(s)."
@@ -56,19 +56,13 @@ void keywordHelpMenu()
 
 
 
-void renameAndMenuUpdate(Filenames& newPaths, Filenames& oldPaths)
+void reloadMenu(Filenames& filePaths, Filenames& filePaths_copy, 
+                std::set<fs::path> directories, const fs::path programName)
 {
-    for (auto& pair: newPaths)
-    {
-        fs::path newPath = pair.second;
-
-        // Rename files. If successful update menu
-        if ( renameErrorCheck(oldPaths[pair.first], newPath) )
-        {
-            oldPaths[pair.first] = newPath;
-        }
-    }
+    filePaths = getFilenames(directories, programName);
+    filePaths_copy = filePaths;
 }
+
 
 
 bool checkMapItemUnique(const Filenames& filePaths, fs::path path)
@@ -231,8 +225,6 @@ void keywordAddAllDirs(std::set<fs::path>& directories,
 
     // Add directories and reset menu files
     directories = directories_temp;
-    filePaths = getFilenames(directories);
-    filePaths_copy = filePaths;
 }
 
 
@@ -272,8 +264,6 @@ void keywordRemoveDir(std::string pattern, std::set<fs::path>& directories,
     }
 
     directories.erase(query);
-    filePaths = getFilenames(directories);
-    filePaths_copy = filePaths;
 }
 
 
@@ -319,8 +309,6 @@ void keywordChangeDir(const std::string& pattern, std::set<fs::path>& directorie
     fs::path newDirPath{fs::canonical(newDir)};
     std::filesystem::current_path(newDirPath);
     directories.insert(newDirPath);
-    filePaths = getFilenames(directories);
-    filePaths_copy = filePaths;
 }
 
 
@@ -349,7 +337,7 @@ void keywordRemoveFilename(const std::string& pattern,
             if (filePaths.contains(index))
             {
                 setColor(Color::green);
-                std::cout << "File removed: " << filePaths[index].filename().string() << '\n';
+                std::cout << "File removed: " << filePaths_copy[index].filename().string() << '\n';
                 filePaths.erase(index);
                 resetColor();
             }
@@ -357,7 +345,7 @@ void keywordRemoveFilename(const std::string& pattern,
             {
                 filePaths[index] = filePaths_copy[index];
                 setColor(Color::green);
-                std::cout << "File restored: " << filePaths[index].filename().string() << '\n';
+                std::cout << "File restored: " << filePaths_copy[index].filename().string() << '\n';
                 resetColor();
             }
         }
@@ -371,6 +359,58 @@ void keywordRemoveFilename(const std::string& pattern,
     }
 }
 
+
+void keywordRemoveAllFilenames(const std::string& pattern, 
+                           Filenames& filePaths,
+                           Filenames& filePaths_copy)
+{
+    // Filenames filePaths_temp{};
+    try
+    {
+        std::string nums{ pattern.substr(3) };
+        if (nums == "")
+            {filePaths.clear(); return;}
+        
+        std::vector<std::string> index_strs{ splitString(nums, ",") };
+        std::vector<std::int16_t> indexes{};
+        for (std::string index_string: index_strs)
+        {
+            int32_t idx{ stoi(index_string) };
+
+            if ( idx < 0 || idx > (filePaths_copy.size() - 1) )
+            {
+                setColor(Color::red);
+                std::cout << "Index " << idx << " is out of bounds.\n";
+                resetColor();
+                continue;
+            }
+            if (!std::count(indexes.begin(), indexes.end(), idx))
+                indexes.push_back(idx);
+        }
+
+        filePaths.clear();
+
+        for (std::int16_t index: indexes)
+        {
+            if (filePaths_copy.contains(index))
+            {
+                setColor(Color::green);
+                std::cout << "File kept: " << filePaths_copy[index].filename().string() << '\n';
+                filePaths[index] = filePaths_copy[index];
+                resetColor();
+            }
+        }
+    }
+    catch(const std::exception& e) //...
+    {
+        std::cerr << e.what() << '\n';
+        setColor(Color::red);
+        std::cout << "\nIncorrect usage of rm- #. Use keyword !help for more info.\n";
+        resetColor();
+        printPause();
+        return;
+    }
+}
 
 
 void keywordRemoveDots(Filenames& filePaths, HistoryData& history)
@@ -401,7 +441,6 @@ void keywordRemoveDots(Filenames& filePaths, HistoryData& history)
         // Restore extension or suffix to path
         restoreDotEnds(new_path, pair.second, dotAtStart);
 
-        // For code readability
         new_filename = new_path.filename().string();
         old_filename = pair.second.filename().string();
 
@@ -629,7 +668,7 @@ void keywordSeries(Filenames& filePaths, HistoryData& history)
 
         matchedPaths[pair.first] = new_path;
     }
-//End of dots code
+// End of dots code
 // Start cap code (edited)
     for (auto& pair: matchedPaths)
     {
@@ -665,7 +704,7 @@ void keywordSeries(Filenames& filePaths, HistoryData& history)
         {
             lpat = sm[0];
 
-            // make s01e01 lowercase //test maybe a better way to do this? transform?
+            // make s01e01 lowercase
             new_filename.replace(sm.position(0), 1, "s");
             new_filename.replace(sm.position(0) + 3, 1, "e");
         }
@@ -877,7 +916,7 @@ void keywordWordCount(Filenames& filePaths)
 }
 
 
-void keywordHistory(HistoryData& history)
+void keywordHistory(HistoryData& history, Filenames& filePaths)
 {
     if (history.historyData.empty())
     {
@@ -889,7 +928,7 @@ void keywordHistory(HistoryData& history)
     }
 
     history.print();
-    std::cout << "\nEnter an index number to undo change. (Green examples can revert, red don't currently exist.)\n" 
+    std::cout << "\nEnter an index number to undo rename. (Green examples can revert, red don't currently exist.)\n" 
                  "Type 'clear' to erase history.\n" 
                  "Or press ENTER to return to menu:\n> ";
     std::string query{};
@@ -931,8 +970,10 @@ void keywordHistory(HistoryData& history)
         return;
     }
     
-    undoRename(history, index);
+    undoRename(history, index, filePaths);
 }
+
+
 
 void keywordToggleHistory(HistoryData& history)
 {

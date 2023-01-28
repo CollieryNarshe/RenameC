@@ -19,17 +19,16 @@ int main(int argc, char* argv[])
     HistoryData history{programName};
     std::string pattern{};
     std::set<fs::path> directories{fs::canonical(".\\")};
-    Filenames filePaths{getFilenames(directories)};
+    Filenames filePaths{getFilenames(directories, programName)};
     Filenames filePaths_copy{filePaths};      // Used to restore filenames
     bool showNums{};                          // Toggle printing index #
 
     while (true)
     {
-        removeFileByName(filePaths, programName); // Remove program name from menu
         printFilenames(filePaths, showNums);      // Print filenames
 
         setColor(Color::pink);
-        std::cout << "\nKeywords examples: !help, chdir, !dots, between, !rnsubs, !series, q\n";
+        std::cout << "\nKeyword examples: !help, chdir, between, !series, !history, q\n";
         resetColor();
         std::cout << "Enter a keyword or pattern to search:\n> ";
         getline(std::cin, pattern);
@@ -47,24 +46,30 @@ int main(int argc, char* argv[])
         else if (pattern == "!index") 
             showNums = !showNums;
 
-        else if (pattern.rfind("chdir", 0) == 0)
+        else if (pattern.rfind("chdir", 0) == 0){
             keywordChangeDir(pattern, directories, filePaths, filePaths_copy);
+            reloadMenu(filePaths, filePaths_copy, directories, programName);}
 
-        else if (pattern == "adir+")
+        else if (pattern == "adir+"){
             keywordAddAllDirs(directories, filePaths, filePaths_copy);
+            reloadMenu(filePaths, filePaths_copy, directories, programName);}
 
-        else if (pattern.rfind("adir", 0) == 0)
+        else if (pattern.rfind("adir", 0) == 0){
             keywordChangeDir(pattern, directories, filePaths, filePaths_copy, true);
+            reloadMenu(filePaths, filePaths_copy, directories, programName);}
 
-        else if (pattern.rfind("rmdir", 0) == 0)
+        else if (pattern.rfind("rmdir", 0) == 0){
             keywordRemoveDir(pattern, directories, filePaths, filePaths_copy);
+            reloadMenu(filePaths, filePaths_copy, directories, programName);}
 
         else if (pattern == "!pwd")
             keywordPWD(directories);
 
-        else if (pattern == "!reload"){
-            filePaths = getFilenames(directories);
-            filePaths_copy = filePaths;}
+        else if (pattern == "!reload")
+            reloadMenu(filePaths, filePaths_copy, directories, programName);
+
+        else if (pattern.rfind("rm-", 0) == 0)
+            keywordRemoveAllFilenames(pattern, filePaths, filePaths_copy);
 
         else if (pattern.rfind("rm", 0) == 0)
             keywordRemoveFilename(pattern, filePaths, filePaths_copy);
@@ -100,14 +105,10 @@ int main(int argc, char* argv[])
             keywordRemoveDirectories(filePaths, false);
 
         else if (pattern == "!undo")
-            {undoRename(history, 0);
-            filePaths = getFilenames(directories);
-            filePaths_copy = filePaths;}
+            undoRename(history, 0, filePaths);
 
         else if (pattern == "!history")
-            {keywordHistory(history);
-            filePaths = getFilenames(directories);
-            filePaths_copy = filePaths;}
+            keywordHistory(history, filePaths);
 
         else if (pattern == "!togglehistory")
             keywordToggleHistory(history);
