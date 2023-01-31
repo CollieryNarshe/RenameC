@@ -18,7 +18,7 @@ using Filenames = std::map<int16_t, fs::path>;
 
 void printPause()
 {
-    std::cout << "\nPress ENTER to continue...";
+    std::cout << "\nPress ENTER to continue...\n> ";
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     std::cout << "==============================\n";
 }
@@ -158,6 +158,8 @@ std::string makeRegex(const std::string& pattern)
             newPattern += ("[\\" + character + "]");
         else if (c == '?')
             newPattern += ("([0-9])");
+        else if (c == '*')
+            newPattern += (".{0,1}");
         else
             newPattern += ("[" + character + "]");
     }
@@ -294,7 +296,7 @@ bool checkIfQuit(std::size_t index)
     setColor(Color::blue);
     std::cout << "\n" << index << " filenames will be renamed.\n";
     resetColor();
-    std::cout << "Press ENTER to continue (or q to quit):\n> ";
+    std::cout << "Press ENTER to rename files (or q to quit):\n> ";
     std::string query{};
     std::getline(std::cin, query);
     std::cout << '\n';
@@ -793,7 +795,7 @@ void adjustForPatternKeywords(const fs::path& filePath, const std::string& patte
 
 
 void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern1,
-                                std::string pattern2)
+                                std::string pattern2, bool plus)
 {   
     // Convert any ? into digit
     pattern1 = convertPatternWithRegex(filePath.filename().string(), pattern1);
@@ -825,25 +827,29 @@ void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern
     }
 
     // Print the filename
+    std::int16_t patternColor{12};
+    if (plus)
+        patternColor = 9;
+
     std::cout << filename.substr(0, index);            //first part before pat
-    setColor(Color::blue);
+    setColor(patternColor);
     if (pLength == 0)
         std::cout << "*";
     else
         std::cout << filename.substr(index, pLength);      //pattern1
-    resetColor();
 
     // If pattern2 not in filename:
     if (index2 == std::string::npos)
     {
+        resetColor();
         std::cout << filename.substr(patEnd) << '\n';
         return;
     }
 
     // Print second part
-    setColor(Color::red);
-    std::cout << filename.substr(patEnd, midLength);    //center of pat
     setColor(Color::blue);
+    std::cout << filename.substr(patEnd, midLength);    //center of pat
+    setColor(patternColor);
     if (pLength2 == 0)
         std::cout << "*";
     else
@@ -915,3 +921,27 @@ void convertRangeDashes(std::vector<std::string>& indexes)
     }
     indexes.erase(std::remove_if(indexes.begin(), indexes.end(), checkDash), indexes.end() );
 }
+
+
+
+void reloadMenu(Filenames& filePaths, Filenames& filePaths_copy, 
+                std::set<fs::path> directories, const fs::path programName)
+{
+    filePaths = getFilenames(directories, programName);
+    filePaths_copy = filePaths;
+}
+
+
+
+bool checkMapItemUnique(const Filenames& filePaths, fs::path path)
+{
+    for (const auto& pair: filePaths)
+    {
+        if (path == pair.second)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+

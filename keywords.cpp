@@ -18,39 +18,40 @@ void keywordHelpMenu()
     setColor(Color::green);
 
     std::cout << 
+        "\n\nRename keywords:"
+        "\nbetween              Replace text between (not including) two patterns."
+        "\nbetween+             Replace text between (including) two patterns."
+        "\n!dots                Replace periods with spaces, ignoring pref and ext."
+        "\n!series              Default parameters for filenames with s01e01 pattern."
+        "\n!rnsubs              Match a folder's filenames (subs) to menu stems."
+        "\n!lower               Lowercase every letter."
+        "\n!cap                 Capitalize every word."
+
+        "\n\nMenu keywords:"
+        "\n!index               Show index numbers for filenames in menu."
+        "\nrm #(,#-#)           Remove or restore menu filename(s) at index #s."
+        "\nrm- (#(,#-#))        Remove all filenames from menu, except index #s."
+        "\n!rmdirs, !rmfiles    Remove all folders or files from menu."
+        "\nchdir, adir, rmdir   Change, add, or remove a directory."
+        "\nadir+                Add all directories in the menu."
+        "\n!pwd                 Print work directories."
+
         "\nPattern matches:"
         "\n#begin               The start of filename."
         "\n#end                 The end of filename."
-        "\n#ext                 The entire file extension"
-        "\n?                    Any digit 1-9. Matched digits are saved to potentially use in replacement pattern."
-        "\n#^                   A number sequence that can be added to replacement pattern."
-        "\n#index #             Any index of the filename."
-
-        "\n\nMenu keywords:"
-        "\n!index:              Show index numbers for filenames in menu."
-        "\nrm #(,#-#):          Remove or restore the menu filename(s) at given index #(s) or -dash range."
-        "\nrm- #(,#-#):         Remove all filenames from menu, except any at given index #(s) or -dash range."
-        "\n!rmdirs, !rmfiles:   Remove all folders or files from menu."
-        "\nchdir, adir, rmdir:  Change, add, or remove a directory."
-        "\nadir+:               Add all directories from current path(s)."
-        "\n!pwd:                Print work directories."
-
-        "\n\nRename keywords:"
-        "\nbetween:             Remove text between (and not including) two patterns."
-        "\nbetween+:            Remove text between (and including) two patterns."
-        "\n!dots:               Remove periods from all filenames and replace with spaces. Ignores prefixes and extensions."
-        "\n!series:             Rename files with set parameters, especially filenames with s01e01 type pattern."
-        "\n!rnsubs:             Change the filenames of a given directory to the filenames in the menu, except extension. Useful for subtitle matching"
-        "\n!lower:              Lowercase every letter."
-        "\n!cap:                Capitalize every word."
+        "\n#ext                 Selects the file extension."
+        "\n?                    Any digit 1-9. Can use match in replacement."
+        "\n*                    Zero or one of any character or digit."
+        "\n#^                   A number sequence for replacement. (01, 02...)"
+        "\n#index #             Points to the filename index."
 
         "\n\nOther keywords:"
-        "\n!reload:             Reload filenames from directory and restore removed files."
-        "\n!wordcount:          Prints count of lines, words, and characters for all files in menu."
-        "\n!print:              Creates a file with the list of file and folders currently in menu."
-        "\n!history:            Show list of history. Can undo past renames."
-        "\n!undo:               Undo the last rename."
-        "\nq, exit, '':         Quit.\n\n";
+        "\n!reload              Reload the menu from source files."
+        "\n!wordcount           Get count of words and lines in menu text files."
+        "\n!print               Creates a text file with menu list."
+        "\n!history             Show a list of rename history. Undo past renames."
+        "\n!undo                Undo the last rename."
+        "\nq, exit, ''          Quit.\n\n";
 
     resetColor();
     std::cout << "Press ENTER to return to filename menu.\n"
@@ -58,27 +59,6 @@ void keywordHelpMenu()
 }
 
 
-
-void reloadMenu(Filenames& filePaths, Filenames& filePaths_copy, 
-                std::set<fs::path> directories, const fs::path programName)
-{
-    filePaths = getFilenames(directories, programName);
-    filePaths_copy = filePaths;
-}
-
-
-
-bool checkMapItemUnique(const Filenames& filePaths, fs::path path)
-{
-    for (const auto& pair: filePaths)
-    {
-        if (path == pair.second)
-        {
-            return false;
-        }
-    }
-    return true;
-}
 
 
 
@@ -145,14 +125,14 @@ void keywordDefaultReplace(std::string& pattern, Filenames& filePaths,
     std::vector<std::string> digits{};
     bool patHasQ{pattern.find("?") != std::string::npos};
     bool replaceHasQ{replacement.find("?") != std::string::npos};
-    
     int16_t sequencePattern_idx{1};
+    
     for ( auto pair = matchedPaths.cbegin(); pair != matchedPaths.cend(); )
     {
         std::string originalFilename{pair->second.filename().string()};
+        temp_replace = replacement;
 
         // extract digits into vector to use with ? in replacement pattern
-        temp_replace = replacement;
         if (patHasQ && replaceHasQ)
         {
             digits = extractDigits( lowercase(originalFilename), lowercase(pattern) );
@@ -174,6 +154,7 @@ void keywordDefaultReplace(std::string& pattern, Filenames& filePaths,
                 " (Filename " << temp_filename.filename() << " already exists.)\n"; 
             resetColor();
             matchedPaths.erase(pair++);
+            ++sequencePattern_idx;
             continue;
         }
 
@@ -227,7 +208,7 @@ void keywordAddAllDirs(std::set<fs::path>& directories,
 
     // Chance to quit
     std::string query{};
-    std::cout << "Press ENTER to add these directories? (q to quit.)";
+    std::cout << "Press ENTER to add these directories. (q to quit.)\n> ";
     getline(std::cin, query);
     if (query != "")
         return;
@@ -262,17 +243,22 @@ void keywordRemoveDir(std::string pattern, std::set<fs::path>& directories,
             return;
     }
 
+    fs::path fullDirPath{fs::canonical(query)};
+
     // If dir input is not in the list
-    if (directories.find(query) == directories.end())
+    if (directories.find(fullDirPath) == directories.end())
     {
         setColor(Color::red);
-        std::cout << "That directory has not been added.\n";
+        std::cout << "\nThat directory has not been added.\n";
         resetColor();
         printPause();
         return;
     }
 
-    directories.erase(query);
+    directories.erase(fullDirPath);
+    setColor(Color::green);
+    std::cout << "\nDirectory removed: " << fullDirPath << '\n';
+    resetColor();
 }
 
 
@@ -298,7 +284,9 @@ void keywordChangeDir(const std::string& pattern, std::set<fs::path>& directorie
     if (newDir == "q" || newDir == "")
         return;
 
-    if (!fs::exists(newDir))
+    fs::path newDirPath{fs::canonical(newDir)};
+
+    if (!fs::exists(newDirPath))
     {
         setColor(Color::red);
         std::cout << "\nIncorrect directory path.\n";
@@ -310,13 +298,13 @@ void keywordChangeDir(const std::string& pattern, std::set<fs::path>& directorie
     setColor(Color::green);
     if (!add){
         directories.clear();
-        std::cout << "\nDirectory changed.\n"; }
+        std::cout << "\nDirectory changed to: " << newDirPath << '\n'; }
     else
-        std::cout << "\nDirectory added.\n";
+        std::cout << "\nDirectory added: " << newDirPath << '\n';
     resetColor();
 
-    fs::path newDirPath{fs::canonical(newDir)};
-    std::filesystem::current_path(newDirPath);
+    if (!add)
+        std::filesystem::current_path(newDirPath);
     directories.insert(newDirPath);
 }
 
@@ -519,7 +507,7 @@ void keywordBetween(Filenames& filePaths, HistoryData& history, bool plus)
     {
         if ( checkBetweenMatches(pair.second, lpat, rpat) )
         {
-            betweenPrintFilenameWithColor(pair.second, lpat, rpat);
+            betweenPrintFilenameWithColor(pair.second, lpat, rpat, plus);
             ++matchNum;
         }
     }
@@ -558,7 +546,10 @@ void keywordBetween(Filenames& filePaths, HistoryData& history, bool plus)
 
         // Make sure new filename is different
         if (fullPath == path)
+        {
+            ++sequencePattern_idx;
             continue;
+        }
 
         // Make sure multiple files are not named the same name:
         if (fs::exists(fullPath) || !checkMapItemUnique(matchedPaths, fullPath))
@@ -566,6 +557,7 @@ void keywordBetween(Filenames& filePaths, HistoryData& history, bool plus)
             setColor(Color::red);
             std::cout << "Cannot rename " << path.filename() << " (Filename " << fullPath.filename() << " already exists.)\n"; 
             resetColor();
+            ++sequencePattern_idx;
             continue;
         }
 
@@ -640,6 +632,8 @@ void keywordPWD(const std::set<fs::path>& directories)
     }
     printPause();
 }
+
+
 
 void keywordSeries(Filenames& filePaths, HistoryData& history)
 {
@@ -724,6 +718,11 @@ void keywordSeries(Filenames& filePaths, HistoryData& history)
             new_filename.replace(sm.position(0), 1, "s");
             new_filename.replace(sm.position(0) + 3, 1, "e");
         }
+        else
+        {
+            matchedPaths.erase(pair++);
+            continue;
+        }
 
         // Add resolution size to end of filename (if found)
         fs::path newPath{new_filename};
@@ -741,6 +740,7 @@ void keywordSeries(Filenames& filePaths, HistoryData& history)
 
 // ============================
         fullPath = getBetweenFilename(path, lpat, rpat, replacement, false);
+        replacement = "";
         // Skip if no match and make sure new filename is different
         if (fullPath == "" || fullPath == pair->second)
         {
@@ -907,16 +907,33 @@ void keywordRenameSubs(Filenames& filePaths, HistoryData& history)
 
 }
 
+
+
 void keywordRemoveDirectories(Filenames& filePaths, bool remove)
 {
+    setColor(Color::green);
+    bool itemRemoved{};
     for (auto pair = filePaths.cbegin(); pair != filePaths.cend(); )
     {
         if ( fs::is_directory(pair->second) == remove)
+        {
+            std::cout << "Removed: " << pair->second << '\n';
             filePaths.erase(pair++);
+            itemRemoved = true;
+        }
         else
             ++pair;
     }
+    setColor(Color::red);
+    if (!itemRemoved && remove)
+        std::cout << "\nNo directories to remove.\n";
+    else if (!itemRemoved && !remove)
+        std::cout << "\nNo files to remove.\n";
+    resetColor();
+    printPause();
 }
+
+
 
 void keywordWordCount(Filenames& filePaths)
 {
@@ -930,6 +947,7 @@ void keywordWordCount(Filenames& filePaths)
     // wordCount.printWords(0, "if");
     printPause();
 }
+
 
 
 void keywordHistory(HistoryData& history, Filenames& filePaths)

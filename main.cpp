@@ -20,18 +20,18 @@ int main(int argc, char* argv[])
     std::string pattern{};
     std::set<fs::path> directories{fs::canonical(".\\")};
     Filenames filePaths{getFilenames(directories, programName)};
-    Filenames filePaths_copy{filePaths};      // Used to restore filenames
-    bool showNums{};                          // Toggle printing index #
+    Filenames filePaths_copy{};      // Used to restore filenames to menu
+    bool showNums{};                 // Toggle printing index #
 
     while (true)
     {
         filePaths_copy = getFilenames(directories, programName);
-        printFilenames(filePaths, showNums);      // Print filenames
+        printFilenames(filePaths, showNums);
 
         setColor(Color::pink);
         std::cout << "\nKeyword examples: !help, chdir, between, !series, !history, q\n";
         resetColor();
-        std::cout << "Enter a keyword or pattern to search:\n> ";
+        std::cout << "Enter a pattern to search (or a keyword):\n> ";
         getline(std::cin, pattern);
 
         // Check for keywords:

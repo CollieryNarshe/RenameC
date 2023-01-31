@@ -106,8 +106,13 @@ Filenames replaceSubtitleFilenames(Filenames& filePaths, Filenames subtitlePaths
 void defaultPrintFilenameWithColor(const fs::path& filePath, std::string pat);
 
 void betweenPrintFilenameWithColor(const fs::path& filePath, std::string pattern1,
-                                std::string pattern2);
+                                std::string pattern2, bool plus);
 
 void undoRename(HistoryData& history, std::int16_t index, Filenames& filePaths);
+
+bool checkMapItemUnique(const Filenames& filePaths, fs::path path);
+
+void reloadMenu(Filenames& filePaths, Filenames& filePaths_copy, 
+                std::set<fs::path> directories, const fs::path programName);
 
 #endif
