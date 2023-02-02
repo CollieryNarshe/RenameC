@@ -29,18 +29,18 @@ void keywordHelpMenu()
 
         "\n\nMenu keywords:"
         "\n!index               Show index numbers for filenames in menu."
-        "\nrm #(,#-#)           Remove or restore menu filename(s) at index #s."
-        "\nrm- (#(,#-#))        Remove all filenames from menu, except index #s."
-        "\n!rmdirs, !rmfiles    Remove all folders or files from menu."
-        "\nchdir, adir, rmdir   Change, add, or remove a directory."
-        "\nadir+                Add all directories in the menu."
+        "\nrm #(,#-#) [name]    Remove/restore menu items with index #s or filename."
+        "\nrm- (#(,#-#)) [name] Remove all filenames, except index/filename."
+        "\nrmfolders, rmfiles   Remove all folders or files from menu."
+        "\nchdir, adir, rmdir   Change, add, or remove a working directory."
+        "\nadir+                Add all menu folders to working directories."
         "\n!pwd                 Print work directories."
 
         "\nPattern matches:"
         "\n#begin               The start of filename."
         "\n#end                 The end of filename."
         "\n#ext                 Selects the file extension."
-        "\n?                    Any digit 1-9. Can use match in replacement."
+        "\n?                    Any digit 0-9. Can use match in replacement."
         "\n*                    Zero or one of any character or digit."
         "\n#^                   A number sequence for replacement. (01, 02...)"
         "\n#index #             Points to the filename index."
@@ -95,10 +95,7 @@ void keywordDefaultReplace(std::string& pattern, Filenames& filePaths,
     // Exit function if no matches found
     if ( !matchedPaths.size() )
     {
-        setColor(Color::red);
-        std::cout << "\nNo filenames to change.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("No filenames to change.");
         return;
     }
     // Print a preview with pattern highlighted
@@ -149,10 +146,8 @@ void keywordDefaultReplace(std::string& pattern, Filenames& filePaths,
                 temp_filename.filename() != pair->second.filename())
            )
         {
-            setColor(Color::red);
-            std::cout << "Cannot rename " << originalFilename << 
-                " (Filename " << temp_filename.filename() << " already exists.)\n"; 
-            resetColor();
+            redErrorMessage("Cannot rename " + originalFilename + " (Filename \"" +
+                temp_filename.filename().string() + "\" already exists.)", false);
             matchedPaths.erase(pair++);
             ++sequencePattern_idx;
             continue;
@@ -199,10 +194,7 @@ void keywordAddAllDirs(std::set<fs::path>& directories,
     // Message if nothing found.
     if (!count)
     {
-        setColor(Color::red);
-        std::cout << "No new directories found.\n"; 
-        resetColor();
-        printPause();
+        redErrorMessage("No new directories found.");
         return;
     }
 
@@ -248,10 +240,7 @@ void keywordRemoveDir(std::string pattern, std::set<fs::path>& directories,
     // If dir input is not in the list
     if (directories.find(fullDirPath) == directories.end())
     {
-        setColor(Color::red);
-        std::cout << "\nThat directory has not been added.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("That directory has not been added.");
         return;
     }
 
@@ -288,10 +277,7 @@ void keywordChangeDir(const std::string& pattern, std::set<fs::path>& directorie
 
     if (!fs::exists(newDirPath))
     {
-        setColor(Color::red);
-        std::cout << "\nIncorrect directory path.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("Incorrect directory path.");
         return;
     }
 
@@ -309,6 +295,35 @@ void keywordChangeDir(const std::string& pattern, std::set<fs::path>& directorie
 }
 
 
+bool removeByFilename(std::string filename, 
+                      Filenames& filePaths,
+                      Filenames& filePaths_copy)
+{
+    bool fileFound{};
+    filename = removeSpace(filename);
+    setColor(Color::green);
+    for (auto& pair : filePaths_copy)
+    {
+        if (filename == pair.second.filename().string())
+        {
+            if (filePaths.contains(pair.first))
+            {
+                std::cout << "File removed: " << pair.second.filename().string() << '\n';
+                filePaths.erase(pair.first);
+                fileFound = true;
+            }
+            else
+            {
+                filePaths[pair.first] = filePaths_copy[pair.first];
+                std::cout << "File restored: " << pair.second.filename().string() << '\n';
+                fileFound = true;
+            }
+        }
+    }
+    resetColor();
+    return fileFound;
+}
+
 
 void keywordRemoveFilename(const std::string& pattern, 
                            Filenames& filePaths,
@@ -316,8 +331,10 @@ void keywordRemoveFilename(const std::string& pattern,
 {
     try
     {
-        std::string nums{ pattern.substr(2) };
-        std::vector<std::string> indexes{ splitString(nums, ",") };
+        std::string subPat{ pattern.substr(2) };
+        if (removeByFilename(subPat, filePaths, filePaths_copy))
+            return;
+        std::vector<std::string> indexes{ splitString(subPat, ",") };
         convertRangeDashes(indexes);
 
         for (std::string index_string: indexes)
@@ -326,9 +343,7 @@ void keywordRemoveFilename(const std::string& pattern,
 
             if ( index < 0 || index > (filePaths_copy.size() - 1) )
             {
-                setColor(Color::red);
-                std::cout << "Index " << index << " is out of bounds.\n";
-                resetColor();
+                redErrorMessage("Index " + std::to_string(index) + " is out of bounds.", false);
                 continue;
             }
 
@@ -350,26 +365,44 @@ void keywordRemoveFilename(const std::string& pattern,
     }
     catch(const std::exception& e) //...
     {
-        std::cerr << e.what() << '\n';
-        setColor(Color::red);
-        std::cout << "\nIncorrect usage of rm #. Use keyword !help for more info.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("File not found.");
     }
 }
+
+
+bool KeepByFilename(std::string filename, 
+                      Filenames& filePaths,
+                      Filenames& filePaths_copy)
+{
+    bool fileFound{};
+    filename = removeSpace(filename);
+    for (auto& pair : filePaths_copy)
+    {
+        if (filename == pair.second.filename().string())
+        {
+            filePaths[pair.first] = pair.second;
+            fileFound = true;
+        }
+    }
+    return fileFound;
+}
+
 
 
 void keywordRemoveAllFilenames(const std::string& pattern, 
                            Filenames& filePaths,
                            Filenames& filePaths_copy)
 {
+    filePaths.clear();
     try
     {
-        std::string nums{ pattern.substr(3) };
-        if (nums == "")
-            {filePaths.clear(); return;}
+        std::string subPat{ pattern.substr(3) };
+        if (subPat == "")
+            return;
+        if (KeepByFilename(subPat, filePaths, filePaths_copy))
+            return;
         
-        std::vector<std::string> index_strs{ splitString(nums, ",") };
+        std::vector<std::string> index_strs{ splitString(subPat, ",") };
         convertRangeDashes(index_strs);
 
         std::vector<std::int16_t> indexes{};
@@ -379,16 +412,13 @@ void keywordRemoveAllFilenames(const std::string& pattern,
 
             if ( idx < 0 || idx > (filePaths_copy.size() - 1) )
             {
-                setColor(Color::red);
-                std::cout << "Index " << idx << " is out of bounds.\n";
-                resetColor();
+                redErrorMessage("Index " + std::to_string(idx) + " is out of bounds.", false);
                 continue;
             }
             if (!std::count(indexes.begin(), indexes.end(), idx))
                 indexes.push_back(idx);
         }
 
-        filePaths.clear();
 
         for (std::int16_t index: indexes)
         {
@@ -403,11 +433,7 @@ void keywordRemoveAllFilenames(const std::string& pattern,
     }
     catch(const std::exception& e) //...
     {
-        std::cerr << e.what() << '\n';
-        setColor(Color::red);
-        std::cout << "\nIncorrect usage of rm- #. Use keyword !help for more info.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("File not found. All files removed.");
         return;
     }
 }
@@ -447,9 +473,8 @@ void keywordRemoveDots(Filenames& filePaths, HistoryData& history)
         // Check for naming conflicts
         if (fs::exists(new_path) || !checkMapItemUnique(matchedPaths, new_path))
             {
-                setColor(Color::red);
-                std::cout << "Cannot rename \"" << old_filename << "\" (Filename \"" << new_filename << "\" already exists.)\n"; 
-                resetColor();
+                redErrorMessage("Cannot rename \"" + old_filename + "\" (Filename \"" + 
+                                new_filename + "\" already exists.)\n", false);
                 continue;
             }
 
@@ -515,10 +540,7 @@ void keywordBetween(Filenames& filePaths, HistoryData& history, bool plus)
     // Check if matches
     if (!matchNum)
     {
-        setColor(Color::red);
-        std::cout << "\nError 1: No filenames contain these patterns.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("Error 1: No filenames contain these patterns.");
         return;
     }
 
@@ -554,9 +576,8 @@ void keywordBetween(Filenames& filePaths, HistoryData& history, bool plus)
         // Make sure multiple files are not named the same name:
         if (fs::exists(fullPath) || !checkMapItemUnique(matchedPaths, fullPath))
         {
-            setColor(Color::red);
-            std::cout << "Cannot rename " << path.filename() << " (Filename " << fullPath.filename() << " already exists.)\n"; 
-            resetColor();
+            redErrorMessage("Cannot rename " + path.filename().string() + " (Filename " + 
+                            fullPath.filename().string() + " already exists.)", false);
             ++sequencePattern_idx;
             continue;
         }
@@ -670,9 +691,7 @@ void keywordSeries(Filenames& filePaths, HistoryData& history)
         // Check for naming conflict
         if (fs::exists(new_path) || !checkMapItemUnique(matchedPaths, new_path))
             {
-                setColor(Color::red);
-                std::cout << "Cannot rename \"" << old_filename << "\" (Filename \"" << new_filename << "\" already exists.)\n"; 
-                resetColor();
+                redErrorMessage("Cannot rename \"" + old_filename + "\" (Filename \"" + new_filename + "\" already exists.)\n", false);
                 continue;
             }
 
@@ -751,9 +770,7 @@ void keywordSeries(Filenames& filePaths, HistoryData& history)
         // Make sure multiple files are not named the same name:
         if (fs::exists(fullPath) || !checkMapItemUnique(renamed_temp, fullPath))
         {
-            setColor(Color::red);
-            std::cout << "Cannot rename " << path.filename() << " (Filename " << fullPath.filename() << " already exists.)\n"; 
-            resetColor();
+            redErrorMessage("Cannot rename " + path.filename().string() + " (Filename " + fullPath.filename().string() + " already exists.)", false);
             matchedPaths.erase(pair++);
             continue;
         }
@@ -771,9 +788,7 @@ void keywordSeries(Filenames& filePaths, HistoryData& history)
         idx = pair->first;
         if (filePaths[idx] == matchedPaths[idx])
         {
-            setColor(Color::red);
-            std::cout << filePaths[idx].filename() << " is already named properly.\n"; 
-            resetColor();
+            redErrorMessage(filePaths[idx].filename().string() + " is already named properly.", false);
             matchedPaths.erase(pair++);
             continue;
         }
@@ -786,10 +801,7 @@ void keywordSeries(Filenames& filePaths, HistoryData& history)
 
     if (!matchedPaths.size())
     {
-        setColor(Color::red);
-        std::cout << "\nNo files to rename.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("No files to rename.");
         return;
     }
 
@@ -807,7 +819,7 @@ void keywordSeries(Filenames& filePaths, HistoryData& history)
 
 void keywordPrintToFile(Filenames& filePaths, bool& showNums, std::set<fs::path> directories)
 {
-    std::cout << "Enter separator for filenames (\\n default):\n> "; 
+    std::cout << "Enter separator for filenames (default: newline):\n> "; 
     std::string separator{};
     std::getline(std::cin, separator);
     if (separator == "")
@@ -847,10 +859,7 @@ void keywordRenameSubs(Filenames& filePaths, HistoryData& history)
 
     if (!fs::exists(query))
     {
-        setColor(Color::red);
-        std::cout << "\nDirectory doesn't exist.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("Directory doesn't exist.");
         return;
     }
     // Get filenames in subtitle directory
@@ -888,10 +897,7 @@ void keywordRenameSubs(Filenames& filePaths, HistoryData& history)
     // Check if there are any filenames to change
     if (size <= 0)
     {
-        setColor(Color::red);
-        std::cout << "\nNo filenames to change.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("No filenames to change.");
         return;
     }
 
@@ -924,13 +930,10 @@ void keywordRemoveDirectories(Filenames& filePaths, bool remove)
         else
             ++pair;
     }
-    setColor(Color::red);
     if (!itemRemoved && remove)
-        std::cout << "\nNo directories to remove.\n";
+        redErrorMessage("No directories to remove.");
     else if (!itemRemoved && !remove)
-        std::cout << "\nNo files to remove.\n";
-    resetColor();
-    printPause();
+        redErrorMessage("No files to remove.");
 }
 
 
@@ -954,10 +957,7 @@ void keywordHistory(HistoryData& history, Filenames& filePaths)
 {
     if (history.historyData.empty())
     {
-        setColor(Color::red);
-        std::cout << "\nThere is no history.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("There is no history.");
         return;
     }
 
@@ -988,19 +988,13 @@ void keywordHistory(HistoryData& history, Filenames& filePaths)
     }
     catch(const std::exception& e)
     {
-        setColor(Color::red);
-        std::cerr << "ERROR: Index number 0-" << history.historyData.size() - 1 << " required.\n" ;
-        resetColor();
-        printPause();
+        redErrorMessage("ERROR: Index number 0-" + std::to_string(history.historyData.size() - 1) + " required.");
         return;
     }
     fs::path renamedFile{history.historyData[index].begin()->second};
     if (!fs::exists(renamedFile))
     {
-        setColor(Color::red);
-        std::cout << "Cannot undo because " << renamedFile.filename() << " has since been changed.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("Cannot undo because \"" + renamedFile.filename().string() + "\" has since been changed.");
         return;
     }
     
@@ -1013,11 +1007,8 @@ void keywordToggleHistory(HistoryData& history)
 {
     history.toggle();
 
-    setColor(Color::red);
     if (history.saveHistory)
-        std::cout << "History turned on.";
+        redErrorMessage("History turned on.");
     else
-        std::cout << "History paused.";
-    resetColor();
-    printPause();
+        redErrorMessage("History paused.");
 }

@@ -59,15 +59,21 @@ int main(int argc, char* argv[])
             keywordChangeDir(pattern, directories, filePaths, filePaths_copy, true);
             reloadMenu(filePaths, filePaths_copy, directories, programName);}
 
-        else if (pattern.rfind("rmdir", 0) == 0){
-            keywordRemoveDir(pattern, directories, filePaths, filePaths_copy);
-            reloadMenu(filePaths, filePaths_copy, directories, programName);}
-
         else if (pattern == "!pwd")
             keywordPWD(directories);
 
         else if (pattern == "!reload")
             reloadMenu(filePaths, filePaths_copy, directories, programName);
+
+        else if (pattern == "rmfolders")
+            keywordRemoveDirectories(filePaths);
+
+        else if (pattern == "rmfiles")
+            keywordRemoveDirectories(filePaths, false);
+
+        else if (pattern.rfind("rmdir", 0) == 0){
+            keywordRemoveDir(pattern, directories, filePaths, filePaths_copy);
+            reloadMenu(filePaths, filePaths_copy, directories, programName);}
 
         else if (pattern.rfind("rm-", 0) == 0)
             keywordRemoveAllFilenames(pattern, filePaths, filePaths_copy);
@@ -99,11 +105,6 @@ int main(int argc, char* argv[])
         else if (pattern == "!rnsubs")
             keywordRenameSubs(filePaths, history);
 
-        else if (pattern == "!rmdirs")
-            keywordRemoveDirectories(filePaths);
-
-        else if (pattern == "!rmfiles")
-            keywordRemoveDirectories(filePaths, false);
 
         else if (pattern == "!undo")
             undoRename(history, 0, filePaths);

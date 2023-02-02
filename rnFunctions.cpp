@@ -24,6 +24,17 @@ void printPause()
 }
 
 
+void redErrorMessage(std::string_view s, bool pause = true)
+{
+    setColor(Color::red);
+    if (pause)
+        std::cout << '\n';
+    std::cout << s << '\n';
+    resetColor();
+    if (pause)
+        printPause();
+}
+
 
 std::string lowercase(std::string s)
 {
@@ -59,9 +70,7 @@ bool renameErrorCheck(fs::path path, fs::path new_path)
     }
     catch(const std::exception& e)
     {
-        setColor(Color::red);
-        std::cout << e.what() << '\n';
-        resetColor();
+        redErrorMessage(e.what(), false);
         return false;
     }
 }
@@ -272,10 +281,7 @@ bool checkForMatches(const Filenames& matchedPaths)
 {
     if ( !matchedPaths.size() )
     {
-        setColor(Color::red);
-        std::cout << "\nError 2: No filenames contain this pattern.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("Error 2: No filenames contain this pattern.");
         return false;
     }
     return true;
@@ -287,10 +293,7 @@ bool checkIfQuit(std::size_t index)
 {
     if (!index)
     {
-        setColor(Color::red);
-        std::cout << "\nNo filenames to change.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("No filenames to change.");
         return true;
     }
     setColor(Color::blue);
@@ -649,10 +652,7 @@ void printToFile(Filenames& filePaths, std::set<fs::path> directories,
     newFile.open("RenameFileList.txt");
     if (!newFile.is_open())
     {
-        setColor(Color::red);
-        std::cout << "Error opening file.\n";
-        resetColor();
-        printPause();
+        redErrorMessage("Error opening file.");
         return;
     }
 

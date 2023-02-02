@@ -14,18 +14,18 @@ between+             Replace text between (including) two patterns.
 
 Menu keywords:
 !index               Show index numbers for filenames in menu.
-rm #(,#-#)           Remove or restore menu filename(s) at index #s.
-rm- (#(,#-#))        Remove all filenames from menu, except index #s.
-!rmdirs, !rmfiles    Remove all folders or files from menu.
-chdir, adir, rmdir   Change, add, or remove a directory.
-adir+                Add all directories.
+rm #(,#-#) [name]    Remove/restore menu items with index #s or filename.
+rm- (#(,#-#)) [name] Remove all filenames, except index/filename.
+rmfolders, rmfiles   Remove all folders or files from menu.
+chdir, adir, rmdir   Change, add, or remove a working directory.
+adir+                Add all menu folders to working directories.
 !pwd                 Print work directories.
 
 Pattern matches:
 #begin               The start of filename.
 #end                 The end of filename.
 #ext                 Selects the file extension.
-?                    Any digit 1-9. Can use match in replacement.
+?                    Any digit 0-9. Can use match in replacement.
 *                    Zero or one of any character or digit.
 #^                   A number sequence for replacement. (01, 02...)
 #index #             Points to the filename's index.

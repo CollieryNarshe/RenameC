@@ -12,6 +12,10 @@
 namespace fs = std::filesystem;
 using Filenames = std::map<int16_t, fs::path>;
 
+
+
+void redErrorMessage(std::string_view s, bool pause = true);
+
 // Replaces all instances of a pattern with a new pattern
 std::string strReplaceAll(std::string origin, const std::string& pat, 
                           const std::string& newPat, const std::size_t start = 0);
