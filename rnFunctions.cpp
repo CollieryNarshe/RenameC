@@ -20,7 +20,6 @@ void printPause()
 {
     std::cout << "\nPress ENTER to continue...\n> ";
     std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    std::cout << "==============================\n";
 }
 
 

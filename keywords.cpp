@@ -28,15 +28,16 @@ void keywordHelpMenu()
         "\n!cap                 Capitalize every word."
 
         "\n\nMenu keywords:"
-        "\n!index               Show index numbers for filenames in menu."
-        "\nrm #(,#-#) [name]    Remove/restore menu items with index #s or filename."
-        "\nrm- (#(,#-#)) [name] Remove all filenames, except index/filename."
-        "\nrmfolders, rmfiles   Remove all folders or files from menu."
+        "\n!index               Show index numbers for filenames."
+        "\nrm #(,#-#) [name]    Remove/restore filenames with index #s or name."
+        "\nrm- (#(,#-#)) [name] Remove all filenames, except index/name."
+        "\n!find !rfind [pat]   Remove all filenames containing/without pattern."
+        "\nrmfolders, rmfiles   Remove all folders or files."
         "\nchdir, adir, rmdir   Change, add, or remove a working directory."
         "\nadir+                Add all menu folders to working directories."
         "\n!pwd                 Print work directories."
 
-        "\nPattern matches:"
+        "\n\nPattern matches:"
         "\n#begin               The start of filename."
         "\n#end                 The end of filename."
         "\n#ext                 Selects the file extension."
@@ -51,6 +52,7 @@ void keywordHelpMenu()
         "\n!print               Creates a text file with menu list."
         "\n!history             Show a list of rename history. Undo past renames."
         "\n!undo                Undo the last rename."
+        "\n!togglehistory       Pause/unpause saving history."
         "\nq, exit, ''          Quit.\n\n";
 
     resetColor();
@@ -1008,7 +1010,80 @@ void keywordToggleHistory(HistoryData& history)
     history.toggle();
 
     if (history.saveHistory)
-        redErrorMessage("History turned on.");
+        redErrorMessage("History saving turned on.");
     else
-        redErrorMessage("History paused.");
+        redErrorMessage("History saving paused.");
+}
+
+
+
+void keywordFind(std::string& pat, Filenames& filePaths, bool remove)
+{
+    int16_t sub_num{};
+    if (remove) sub_num = 6;
+    else sub_num = 5;
+    std::string pattern{removeSpace(pat.substr(sub_num))};
+    std::string pattern_temp{};
+
+    if (pattern == "")
+    {
+        std::cout << "\nEnter a pattern to search (or q to quit):\n> "; 
+        std::getline(std::cin, pattern);
+        if (pattern == "q")
+            return;
+    }
+
+    std::string name{};
+    Filenames filePaths_temp{filePaths};
+    std::string messageFilesRemoved{};
+    bool matchFound{};
+    for (auto pair = filePaths_temp.cbegin(); pair != filePaths_temp.cend(); )
+    {
+        name = lowercase(pair->second.filename().string());
+        pattern_temp = convertPatternWithRegex(name, pattern);
+        if (name.find(lowercase(pattern_temp)) == std::string::npos)
+        {
+            if (!remove)
+            {
+                messageFilesRemoved += "File removed: " + name + '\n';
+                filePaths_temp.erase(pair++);
+                matchFound = true;
+                continue;
+            }
+        }
+        else
+        {
+            if (remove)
+            {
+                messageFilesRemoved += "File removed: " + name + '\n';
+                filePaths_temp.erase(pair++);
+                matchFound = true;
+                continue;
+            }
+        }
+        ++pair;
+    }
+
+    if (filePaths_temp.empty())
+    {
+        if (!remove)
+            redErrorMessage("No menu filenames match that pattern.");
+        else
+            redErrorMessage("All menu filenames match that pattern. Use a more specific pattern.");
+        return;
+    }
+
+    if (!matchFound)
+    {
+        if (!remove)
+            redErrorMessage("All menu filenames match that pattern. Use a more specific pattern.");
+        else
+            redErrorMessage("No menu filenames match that pattern.");
+        return;
+    }
+
+    setColor(Color::green);
+    std::cout << messageFilesRemoved;
+    resetColor();
+    filePaths = filePaths_temp;
 }

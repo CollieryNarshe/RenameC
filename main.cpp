@@ -105,6 +105,11 @@ int main(int argc, char* argv[])
         else if (pattern == "!rnsubs")
             keywordRenameSubs(filePaths, history);
 
+        else if (pattern.rfind("!find", 0) == 0)
+            keywordFind(pattern, filePaths);
+
+        else if (pattern.rfind("!rfind", 0) == 0 )
+            keywordFind(pattern, filePaths, true);
 
         else if (pattern == "!undo")
             undoRename(history, 0, filePaths);

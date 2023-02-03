@@ -82,10 +82,14 @@ public:
             OldNewFiles historyPoint{};
             getline(fileData, line);
             if (line == "off")
+            {
+                setColor(Color::red);
+                std::cout << "\nHistory is turned off.\n";
+                resetColor();
                 saveHistory = false;
+            }
             else if (line == "on")
                 saveHistory = true;
-            std::cout << line << '\n';
 
             while(getline(fileData, line))
             {

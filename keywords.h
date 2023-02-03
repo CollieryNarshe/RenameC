@@ -61,4 +61,6 @@ void keywordHistory(HistoryData& history, Filenames& filePaths);
 
 void keywordToggleHistory(HistoryData& history);
 
+void keywordFind(std::string& pat, Filenames& filePaths, bool remove = false);
+
 #endif
